@@ -8,6 +8,12 @@ import org.axonframework.serialization.xml.XStreamSerializer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author Marc Gathier
@@ -48,5 +54,21 @@ public class AxonConfiguration {
         return AxonServerConnectionManager.builder()
                                           .axonServerConfiguration(axonServerConfiguration)
                                           .build();
+    }
+
+
+    @Bean
+    public MongoCustomConversions customConversions() {
+        List<Converter<?, ?>> converters = new ArrayList<>();
+        converters.add(StringToInstantConverter.INSTANCE);
+        return new MongoCustomConversions(converters);
+    }
+
+    enum StringToInstantConverter implements Converter<String, Instant> {
+        INSTANCE;
+        @Override
+        public Instant convert(String source) {
+            return Instant.parse(source);
+        }
     }
 }

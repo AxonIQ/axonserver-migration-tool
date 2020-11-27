@@ -1,4 +1,9 @@
 spring:
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: axonframework
   application:
     name: axondb-migration
   profiles:
