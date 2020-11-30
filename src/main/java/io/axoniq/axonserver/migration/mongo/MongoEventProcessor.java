@@ -15,6 +15,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.mongodb.client.model.Filters.*;
+import static org.axonframework.common.DateTimeUtils.formatInstant;
+
 /**
  * @author Stefan Dragisic
  */
@@ -37,57 +40,53 @@ public class MongoEventProcessor implements EventProducer {
     @Override
     public List<? extends MongoDomainEvent> findEvents(long lastToken, int batchSize) {
 
-        if (eventsCursor == null) {
+        if (eventsCursor == null && lastToken == -1) {
             MongoCollection<Document> eventCollection = template.getCollection("domainevents");
             eventsCursor = eventCollection.find();
             eventsCursor = eventsCursor.sort(new BasicDBObject("timestamp", 1)
                     .append("sequenceNumber", 1));
+            eventsCursor = eventsCursor.batchSize(batchSize);
              eventsIterator = eventsCursor.iterator();
+        } else if (eventsCursor == null){
+            MongoCollection<Document> eventCollection = template.getCollection("domainevents");
+            eventsCursor = eventCollection.find(and(gte("timestamp",
+                    formatInstant(Instant.ofEpochMilli(lastToken)))));
+            eventsCursor = eventsCursor.batchSize(batchSize);
+            eventsIterator = eventsCursor.iterator();
         }
 
-        eventsCursor = eventsCursor.batchSize(batchSize);
-        List<MongoDomainEvent> results = new ArrayList<>();
-
-        for (MongoCursor<Document> itr = eventsIterator; results.size() < batchSize && itr.hasNext(); ) {
-            Document document = itr.next();
-
-            results.add(new MongoDomainEvent(
-                    document.getString("timestamp"),
-                    document.getString("serializedPayload"),
-                    document.getString("serializedMetaData"),
-                    document.getString("eventIdentifier"),
-                    document.getString("payloadType"),
-                    document.getString("payloadRevision"),
-                    Instant.parse(document.getString("timestamp")).toEpochMilli(),
-                    document.getString("type"),
-                    document.getString("aggregateIdentifier"),
-                    document.getLong("sequenceNumber")
-                    )
-            );
-
-        }
-        return results;
+       return getResults(eventsIterator,batchSize);
 
     }
 
     @Override
     public List<? extends SnapshotEvent> findSnapshots(String lastProcessedTimestamp, int batchSize) {
 
-        if (snapshotCursor == null) {
+        if (snapshotCursor == null && Instant.parse(lastProcessedTimestamp).equals(Instant.ofEpochMilli(0))) {
             MongoCollection<Document> snapshotCollection = template.getCollection("snapshotevents");
             snapshotCursor = snapshotCollection.find();
             snapshotCursor = snapshotCursor.sort(new BasicDBObject("timestamp", 1)
                     .append("sequenceNumber", 1));
+            snapshotCursor = snapshotCursor.batchSize(batchSize);
+            snapshotIterator = snapshotCursor.iterator();
+        } else if (snapshotCursor == null) {
+            MongoCollection<Document> snapshotCollection = template.getCollection("snapshotevents");
+            snapshotCursor = snapshotCollection.find(and(gte("timestamp",
+                    lastProcessedTimestamp)));
+            snapshotCursor = snapshotCursor.batchSize(batchSize);
             snapshotIterator = snapshotCursor.iterator();
         }
 
-        snapshotCursor = snapshotCursor.batchSize(batchSize);
-        List<MongoSnapshotEvent> results = new ArrayList<>();
+        return getResults(snapshotIterator,batchSize);
+    }
 
-        for (MongoCursor<Document> itr = snapshotIterator; results.size() < batchSize && itr.hasNext(); ) {
+    private List<MongoDomainEvent> getResults(MongoCursor<Document> iterator, int batchSize) {
+        List<MongoDomainEvent> results = new ArrayList<>();
+
+        for (MongoCursor<Document> itr = iterator; results.size() < batchSize && itr.hasNext(); ) {
             Document document = itr.next();
 
-            results.add(new MongoSnapshotEvent(
+            results.add(new MongoDomainEvent(
                             document.getString("timestamp"),
                             document.getString("serializedPayload"),
                             document.getString("serializedMetaData"),

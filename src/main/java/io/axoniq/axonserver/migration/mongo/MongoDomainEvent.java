@@ -1,7 +1,7 @@
 package io.axoniq.axonserver.migration.mongo;
 
 import io.axoniq.axonserver.migration.DomainEvent;
-import org.springframework.data.mongodb.core.mapping.Document;
+import io.axoniq.axonserver.migration.SnapshotEvent;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -9,14 +9,13 @@ import java.time.Instant;
 /**
  * @author Stefan Dragisic
  */
-public class MongoDomainEvent implements DomainEvent {
+public class MongoDomainEvent implements DomainEvent, SnapshotEvent {
     public MongoDomainEvent(String timestamp,
                             String serializedPayload,
                             String serializedMetaData,
                             String eventIdentifier,
                             String payloadType,
                             String payloadRevision,
-                            long globalIndex,
                             String type,
                             String aggregateIdentifier,
                             long sequenceNumber) {
@@ -26,7 +25,6 @@ public class MongoDomainEvent implements DomainEvent {
         this.eventIdentifier = eventIdentifier;
         this.payloadType = payloadType;
         this.payloadRevision = payloadRevision;
-        this.globalIndex = globalIndex;
         this.type = type;
         this.aggregateIdentifier = aggregateIdentifier;
         this.sequenceNumber = sequenceNumber;
@@ -38,7 +36,6 @@ public class MongoDomainEvent implements DomainEvent {
     private String eventIdentifier;
     private String payloadType;
     private String payloadRevision;
-    private long globalIndex;
     private String type;
     private String aggregateIdentifier;
     private long sequenceNumber;
@@ -61,6 +58,11 @@ public class MongoDomainEvent implements DomainEvent {
     @Override
     public long getSequenceNumber() {
         return sequenceNumber;
+    }
+
+    @Override
+    public String getTimeStamp() {
+        return timestamp;
     }
 
     @Override

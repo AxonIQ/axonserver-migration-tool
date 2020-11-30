@@ -1,9 +1,4 @@
 spring:
-  data:
-    mongodb:
-      host: localhost
-      port: 27017
-      database: axonframework
   application:
     name: axondb-migration
   profiles:
@@ -13,7 +8,7 @@ spring:
 
 axoniq:
   migration:
-    batchSize: 100
+    batchSize: 2
 
   datasource:
     migration:
