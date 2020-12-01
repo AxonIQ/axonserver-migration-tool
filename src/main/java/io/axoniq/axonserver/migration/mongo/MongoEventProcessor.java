@@ -86,20 +86,30 @@ public class MongoEventProcessor implements EventProducer {
         for (MongoCursor<Document> itr = iterator; results.size() < batchSize && itr.hasNext(); ) {
             Document document = itr.next();
 
-            results.add(new MongoDomainEvent(
-                            document.getString("timestamp"),
-                            document.getString("serializedPayload"),
-                            document.getString("serializedMetaData"),
-                            document.getString("eventIdentifier"),
-                            document.getString("payloadType"),
-                            document.getString("payloadRevision"),
-                            document.getString("type"),
-                            document.getString("aggregateIdentifier"),
-                            document.getLong("sequenceNumber")
-                    )
-            );
+            //DocumentPerCommitStorageStrategy
+            ArrayList<Document> events = (ArrayList<Document>) document.get("events");
+            if (events != null) {
+                events.forEach(doc->results.add(toEvent(doc)));
+            } else {
+                //DocumentPerEventStorageStrategy
+                results.add(toEvent(document));
+            }
         }
         return results;
+    }
+
+    private MongoDomainEvent toEvent(Document document) {
+        return new MongoDomainEvent(
+                document.getString("timestamp"),
+                document.getString("serializedPayload"),
+                document.getString("serializedMetaData"),
+                document.getString("eventIdentifier"),
+                document.getString("payloadType"),
+                document.getString("payloadRevision"),
+                document.getString("type"),
+                document.getString("aggregateIdentifier"),
+                document.getLong("sequenceNumber")
+        );
     }
 
 
