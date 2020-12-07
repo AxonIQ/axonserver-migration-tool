@@ -190,8 +190,18 @@ public class MigrationRunner implements CommandLineRunner {
                 events.add(eventBuilder.build());
                 lastProcessedToken = entry.getGlobalIndex();
             }
-            axonDBClient.getConnection().eventChannel().appendEvents(events.toArray(new Event[0])).get(30,
-                                                                                                       TimeUnit.SECONDS);
+
+            try {
+                axonDBClient.getConnection().eventChannel().appendEvents(events.toArray(new Event[0])).get(30,
+                        TimeUnit.SECONDS);
+            } catch (Exception e) {
+                if(e.getMessage().contains("OUT_OF_RANGE")) {
+                    logger.warn("Event is probably already migrated, skipping...  Message from server: {}", e.getMessage());
+                } else {
+                    throw e;
+                }
+            }
+
             if (eventsMigrated.addAndGet(events.size()) % 1000 == 0) {
                 logger.debug("Migrated {} events", eventsMigrated.get());
             }
