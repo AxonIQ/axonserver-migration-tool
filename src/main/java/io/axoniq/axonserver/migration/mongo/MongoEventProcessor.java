@@ -7,10 +7,12 @@ import com.mongodb.client.MongoCursor;
 import io.axoniq.axonserver.migration.EventProducer;
 import io.axoniq.axonserver.migration.SnapshotEvent;
 import org.bson.Document;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +35,16 @@ public class MongoEventProcessor implements EventProducer {
     private FindIterable<Document> snapshotCursor = null;
     MongoCursor<Document> snapshotIterator = null;
 
-    public MongoEventProcessor(MongoTemplate template) {
+
+    final Duration LOOK_BACK_DURATION;
+    final Duration SNAPSHOTS_LOOK_BACK_DURATION;
+
+    public MongoEventProcessor(MongoTemplate template,
+                               @Value("${axoniq.migration.eventsLookBackSeconds:10}") int eventsLookBackSeconds,
+                               @Value("${axoniq.migration.snapshotsLookBackSeconds:15}") int snapshotsLookBackSeconds) {
         this.template = template;
+        LOOK_BACK_DURATION = Duration.ofSeconds(eventsLookBackSeconds);
+        SNAPSHOTS_LOOK_BACK_DURATION = Duration.ofSeconds(snapshotsLookBackSeconds);
     }
 
     @Override
@@ -42,7 +52,8 @@ public class MongoEventProcessor implements EventProducer {
 
         if (eventsCursor == null && lastToken == -1) {
             MongoCollection<Document> eventCollection = template.getCollection("domainevents");
-            eventsCursor = eventCollection.find();
+            eventsCursor = eventCollection.find(and(lt("timestamp",
+                    formatInstant(Instant.now().minus(LOOK_BACK_DURATION)))));
             eventsCursor = eventsCursor.sort(new BasicDBObject("timestamp", 1)
                     .append("sequenceNumber", 1));
             eventsCursor = eventsCursor.batchSize(batchSize);
@@ -50,7 +61,8 @@ public class MongoEventProcessor implements EventProducer {
         } else if (eventsCursor == null){
             MongoCollection<Document> eventCollection = template.getCollection("domainevents");
             eventsCursor = eventCollection.find(and(gte("timestamp",
-                    formatInstant(Instant.ofEpochMilli(lastToken)))));
+                    formatInstant(Instant.ofEpochMilli(lastToken))),
+                    and(lte("timestamp", Instant.now().minus(LOOK_BACK_DURATION).toString()))));
             eventsCursor = eventsCursor.batchSize(batchSize);
             eventsIterator = eventsCursor.iterator();
         }
@@ -64,15 +76,18 @@ public class MongoEventProcessor implements EventProducer {
 
         if (snapshotCursor == null && Instant.parse(lastProcessedTimestamp).equals(Instant.ofEpochMilli(0))) {
             MongoCollection<Document> snapshotCollection = template.getCollection("snapshotevents");
-            snapshotCursor = snapshotCollection.find();
+            snapshotCursor = snapshotCollection.find(and(lt("timestamp",
+                    Instant.now().minus(SNAPSHOTS_LOOK_BACK_DURATION).toString())));
             snapshotCursor = snapshotCursor.sort(new BasicDBObject("timestamp", 1)
                     .append("sequenceNumber", 1));
             snapshotCursor = snapshotCursor.batchSize(batchSize);
             snapshotIterator = snapshotCursor.iterator();
         } else if (snapshotCursor == null) {
             MongoCollection<Document> snapshotCollection = template.getCollection("snapshotevents");
-            snapshotCursor = snapshotCollection.find(and(gte("timestamp",
-                    lastProcessedTimestamp)));
+
+            snapshotCursor = snapshotCollection.find(and(gt("timestamp",
+                    lastProcessedTimestamp),and(lte("timestamp", Instant.now().minus(SNAPSHOTS_LOOK_BACK_DURATION).toString()))));
+
             snapshotCursor = snapshotCursor.batchSize(batchSize);
             snapshotIterator = snapshotCursor.iterator();
         }

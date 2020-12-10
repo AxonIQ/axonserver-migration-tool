@@ -8,7 +8,9 @@ spring:
 
 axoniq:
   migration:
-    batchSize: 2
+    batchSize: 100
+    eventsLookBackSeconds: 10
+    snapshotsLookBackSeconds: 15
 
   datasource:
     migration:
