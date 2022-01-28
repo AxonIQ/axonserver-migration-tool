@@ -32,7 +32,7 @@ public class AxonConfiguration {
         if (SerializerType.JACKSON.equals(migrationProperties.getEvents())) {
             return JacksonSerializer.builder().build();
         }
-        return XStreamSerializer.builder().build();
+        return XStreamSerializer.defaultSerializer();
     }
 
 
