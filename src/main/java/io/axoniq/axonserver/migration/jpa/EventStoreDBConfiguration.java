@@ -1,6 +1,7 @@
 package io.axoniq.axonserver.migration.jpa;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
@@ -33,10 +34,13 @@ public class EventStoreDBConfiguration {
     @Primary
     @Qualifier("eventStoreEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean eventStoreEntityManagerFactory(
-            EntityManagerFactoryBuilder builder) {
+            EntityManagerFactoryBuilder builder,
+            @Value("${axoniq.migration.disable-naming-strategy:false}") boolean disableNamingStrategy) {
         Map<String, Object> properties = new HashMap<>();
-        properties.put("hibernate.physical_naming_strategy", SpringPhysicalNamingStrategy.class.getName());
-        properties.put("hibernate.implicit_naming_strategy", SpringImplicitNamingStrategy.class.getName());
+        if (!disableNamingStrategy) {
+            properties.put("hibernate.physical_naming_strategy", SpringPhysicalNamingStrategy.class.getName());
+            properties.put("hibernate.implicit_naming_strategy", SpringImplicitNamingStrategy.class.getName());
+        }
 //        properties.put("hibernate.show_sql", "true");
 //        properties.put("hibernate.format_sql", "true");
 
