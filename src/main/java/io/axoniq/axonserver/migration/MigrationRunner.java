@@ -49,6 +49,13 @@ public class MigrationRunner implements CommandLineRunner {
     private int batchSize;
     @Value("${axoniq.migration.recentMillis:10000}")
     private int recentMillis;
+
+    @Value("${axoniq.migration.migrateSnapshots:true}")
+    private boolean migrateSnapshots;
+
+    @Value("${axoniq.migration.migrateEvents:true}")
+    private boolean migrateEvents;
+
     private final AtomicLong snapshotsMigrated = new AtomicLong();
     private final AtomicLong eventsMigrated = new AtomicLong();
     private final ApplicationContext context;
@@ -85,6 +92,10 @@ public class MigrationRunner implements CommandLineRunner {
     }
 
     private void migrateSnapshots() throws InterruptedException, ExecutionException, TimeoutException {
+        if (!migrateSnapshots) {
+            logger.info("Skipping migration of snapshots due to configuration");
+            return;
+        }
         MigrationStatus migrationStatus = migrationStatusRepository.findById(1L).orElse(new MigrationStatus());
 
         String lastProcessedTimestamp = migrationStatus.getLastSnapshotTimestamp();
@@ -93,8 +104,8 @@ public class MigrationRunner implements CommandLineRunner {
         boolean keepRunning = true;
 
         logger.info("Starting migration of snapshots from timestamp: {}, batchSize = {}",
-                    lastProcessedTimestamp,
-                    batchSize);
+                lastProcessedTimestamp,
+                batchSize);
 
         try {
             while(keepRunning) {
@@ -149,6 +160,10 @@ public class MigrationRunner implements CommandLineRunner {
     }
 
     private void migrateEvents() throws ExecutionException, InterruptedException, TimeoutException {
+        if (!migrateEvents) {
+            logger.info("Skipping migration of events due to configuration");
+            return;
+        }
         MigrationStatus migrationStatus = migrationStatusRepository.findById(1L).orElse(new MigrationStatus());
 
         long lastProcessedToken = migrationStatus.getLastEventGlobalIndex();
