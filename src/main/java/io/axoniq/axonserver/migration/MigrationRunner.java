@@ -21,10 +21,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -58,6 +55,7 @@ public class MigrationRunner implements CommandLineRunner {
 
     private final AtomicLong snapshotsMigrated = new AtomicLong();
     private final AtomicLong eventsMigrated = new AtomicLong();
+    private final AtomicLong lastReported = new AtomicLong();
     private final ApplicationContext context;
 
     public MigrationRunner(EventProducer eventProducer, Serializer serializer,
@@ -111,7 +109,7 @@ public class MigrationRunner implements CommandLineRunner {
             while(keepRunning) {
                 keepRunning = false;
                 List<? extends SnapshotEvent> result = eventProducer.findSnapshots(lastProcessedTimestamp, batchSize);
-                if( result.isEmpty()) {
+                if (result.isEmpty()) {
                     logger.info("No more snapshots found");
                     return;
                 }
@@ -180,46 +178,23 @@ public class MigrationRunner implements CommandLineRunner {
 
             List<Event> events = new ArrayList<>();
             for (DomainEvent entry : result) {
-
                 if (entry.getGlobalIndex() != lastProcessedToken + 1 && recentEvent(entry)) {
                     logger.error("Missing event at: {}, found globalIndex {}, stopping migration",
-                                 (lastProcessedToken + 1),
-                                 entry.getGlobalIndex());
+                            (lastProcessedToken + 1),
+                            entry.getGlobalIndex());
                     keepRunning = false;
                     break;
                 }
 
-                Event.Builder eventBuilder = Event.newBuilder()
-                                                  .setPayload(toPayload(entry))
-                        .setMessageIdentifier(entry.getEventIdentifier())
-                        ;
-
-                if( entry.getType()!= null) {
-                    eventBuilder.setAggregateType(entry.getType())
-                                .setAggregateSequenceNumber(entry.getSequenceNumber())
-                                .setAggregateIdentifier(entry.getAggregateIdentifier())
-                    ;
-                }
-
-                eventBuilder.setTimestamp(entry.getTimeStampAsLong());
-                convertMetadata(entry.getMetaData(), eventBuilder);
-
-                events.add(eventBuilder.build());
+                Event event = buildEvent(entry);
+                events.add(event);
                 lastProcessedToken = entry.getGlobalIndex();
             }
 
-            try {
-                axonDBClient.getConnection().eventChannel().appendEvents(events.toArray(new Event[0])).get(30,
-                        TimeUnit.SECONDS);
-            } catch (Exception e) {
-                if(e.getMessage() != null && e.getMessage().contains("OUT_OF_RANGE")) {
-                    logger.warn("Event is probably already migrated, skipping...  Message from server: {}", e.getMessage());
-                } else {
-                    throw e;
-                }
-            }
+            storeEvents(events);
 
-            if (eventsMigrated.addAndGet(events.size()) % 1000 == 0) {
+            if (eventsMigrated.addAndGet(events.size()) > lastReported.get() + 1000) {
+                lastReported.set(eventsMigrated.intValue());
                 logger.debug("Migrated {} events", eventsMigrated.get());
             }
             migrationStatus.setLastEventGlobalIndex(lastProcessedToken);
@@ -229,14 +204,55 @@ public class MigrationRunner implements CommandLineRunner {
 
     }
 
+    private Event buildEvent(final DomainEvent entry) {
+        Event.Builder eventBuilder = Event.newBuilder()
+                .setPayload(toPayload(entry))
+                .setMessageIdentifier(entry.getEventIdentifier());
+
+        if (entry.getType() != null) {
+            eventBuilder.setAggregateType(entry.getType())
+                    .setAggregateSequenceNumber(entry.getSequenceNumber())
+                    .setAggregateIdentifier(entry.getAggregateIdentifier())
+            ;
+        }
+
+        eventBuilder.setTimestamp(entry.getTimeStampAsLong());
+        convertMetadata(entry.getMetaData(), eventBuilder);
+        return eventBuilder.build();
+    }
+
+    private void storeEvents(List<Event> events) throws ExecutionException, InterruptedException, TimeoutException {
+        try {
+            axonDBClient.getConnection()
+                    .eventChannel()
+                    .appendEvents(events.toArray(new Event[0]))
+                    .get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            if (e.getMessage() == null || !e.getMessage().contains("OUT_OF_RANGE")) {
+                throw e;
+            }
+            // Out of range error. Skip if batch size is one, reduce batch sizes otherwise
+            if (events.size() == 1) {
+                logger.warn("Event is probably already migrated, skipping...  Message from server: {}", e.getMessage());
+            } else {
+                // Batch was greater than one, the entire batch failed. Split the list and retry
+                logger.warn("One of the events in the batch was OUT_OF_RANGE. Retrying with batches of 1...");
+                for (Event event : events) {
+                    storeEvents(Collections.singletonList(event));
+                }
+            }
+
+        }
+    }
+
     private boolean recentEvent(DomainEvent entry) {
         return entry.getTimeStampAsLong() > System.currentTimeMillis() - recentMillis;
     }
 
     private SerializedObject toPayload(BaseEvent entry) {
         SerializedObject.Builder builder = SerializedObject.newBuilder()
-                                                           .setData(ByteString.copyFrom(entry.getPayload()))
-                                                           .setType(entry.getPayloadType());
+                .setData(ByteString.copyFrom(entry.getPayload()))
+                .setType(entry.getPayloadType());
 
         if( entry.getPayloadRevision() != null)
             builder.setRevision(entry.getPayloadRevision());
