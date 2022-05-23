@@ -6,6 +6,7 @@ spring:
   jpa:
     database: default
 
+
 axoniq:
   migration:
     batchSize: 100
