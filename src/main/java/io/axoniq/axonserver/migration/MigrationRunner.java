@@ -5,6 +5,8 @@ import com.google.protobuf.ByteString;
 import io.axoniq.axonserver.grpc.MetaDataValue;
 import io.axoniq.axonserver.grpc.SerializedObject;
 import io.axoniq.axonserver.grpc.event.Event;
+import io.axoniq.axonserver.migration.db.MigrationAggregateStatus;
+import io.axoniq.axonserver.migration.db.MigrationAggregateStatusRepository;
 import io.axoniq.axonserver.migration.db.MigrationStatus;
 import io.axoniq.axonserver.migration.db.MigrationStatusRepository;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
@@ -26,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 
 /**
@@ -41,6 +44,7 @@ public class MigrationRunner implements CommandLineRunner {
     private final MigrationStatusRepository migrationStatusRepository;
     private final Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
     private final GrpcMetaDataConverter grpcMetaDataConverter;
+    private final MigrationAggregateStatusRepository aggregateStatusRepository;
 
     @Value("${axoniq.migration.batchSize:100}")
     private int batchSize;
@@ -53,6 +57,9 @@ public class MigrationRunner implements CommandLineRunner {
     @Value("${axoniq.migration.migrateEvents:true}")
     private boolean migrateEvents;
 
+    @Value("${axoniq.migration.blacklist:}")
+    private List<String> blacklistedEvents;
+
     private final AtomicLong snapshotsMigrated = new AtomicLong();
     private final AtomicLong eventsMigrated = new AtomicLong();
     private final AtomicLong lastReported = new AtomicLong();
@@ -61,11 +68,13 @@ public class MigrationRunner implements CommandLineRunner {
     public MigrationRunner(EventProducer eventProducer, Serializer serializer,
                            MigrationStatusRepository migrationStatusRepository,
                            AxonServerConnectionManager axonDBClient,
+                           final MigrationAggregateStatusRepository aggregateStatusRepository,
                            ApplicationContext context) {
         this.eventProducer = eventProducer;
         this.axonDBClient = axonDBClient;
         this.serializer = serializer;
         this.migrationStatusRepository = migrationStatusRepository;
+        this.aggregateStatusRepository = aggregateStatusRepository;
         this.context = context;
         this.grpcMetaDataConverter = new GrpcMetaDataConverter(this.serializer);
     }
@@ -175,6 +184,8 @@ public class MigrationRunner implements CommandLineRunner {
                 logger.info("No more events found");
                 return;
             }
+            result = result.stream().filter(e -> !blacklistedEvents.contains(e.getPayloadType())).collect(Collectors.toList());
+            final List<MigrationAggregateStatus> statuses = fetchMigrationStatuses(result);
 
             List<Event> events = new ArrayList<>();
             for (DomainEvent entry : result) {
@@ -186,7 +197,7 @@ public class MigrationRunner implements CommandLineRunner {
                     break;
                 }
 
-                Event event = buildEvent(entry);
+                Event event = buildEvent(entry, statuses);
                 events.add(event);
                 lastProcessedToken = entry.getGlobalIndex();
             }
@@ -199,21 +210,39 @@ public class MigrationRunner implements CommandLineRunner {
             }
             migrationStatus.setLastEventGlobalIndex(lastProcessedToken);
             migrationStatusRepository.save(migrationStatus);
+            aggregateStatusRepository.saveAll(statuses);
         }
-
-
     }
 
-    private Event buildEvent(final DomainEvent entry) {
+    private List<MigrationAggregateStatus> fetchMigrationStatuses(List<? extends DomainEvent> events) {
+        return events.stream()
+                .filter(e -> e.getType() != null)
+                .map(e -> Arrays.asList(e.getType(), e.getAggregateIdentifier()))
+                .distinct()
+                .map(pair -> {
+                    final MigrationAggregateStatus existing = aggregateStatusRepository.findByAggregateTypeAndAggregateIdentifier(pair.get(0), pair.get(1));
+                    if (existing != null) {
+                        return existing;
+                    }
+                    return new MigrationAggregateStatus(pair.get(0), pair.get(1));
+                })
+                .collect(Collectors.toList());
+    }
+
+    private Event buildEvent(final DomainEvent entry, final List<MigrationAggregateStatus> statuses) {
         Event.Builder eventBuilder = Event.newBuilder()
                 .setPayload(toPayload(entry))
                 .setMessageIdentifier(entry.getEventIdentifier());
 
         if (entry.getType() != null) {
+            final MigrationAggregateStatus aggregateStatus = statuses.stream()
+                    .filter(s -> Objects.equals(s.getAggregateType(), entry.getType()) && Objects.equals(s.getAggregateIdentifier(), entry.getAggregateIdentifier()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("No correct aggregate status found"));
+
             eventBuilder.setAggregateType(entry.getType())
-                    .setAggregateSequenceNumber(entry.getSequenceNumber())
-                    .setAggregateIdentifier(entry.getAggregateIdentifier())
-            ;
+                    .setAggregateSequenceNumber(aggregateStatus.nextSequenceNumber())
+                    .setAggregateIdentifier(entry.getAggregateIdentifier());
         }
 
         eventBuilder.setTimestamp(entry.getTimeStampAsLong());
