@@ -23,7 +23,13 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -184,14 +190,19 @@ public class MigrationRunner implements CommandLineRunner {
                 logger.info("No more events found");
                 return;
             }
-            result = result.stream().filter(e -> !blacklistedEvents.contains(e.getPayloadType())).collect(Collectors.toList());
+            DomainEvent lastEntry = result.get(result.size() - 1);
+            lastProcessedToken = lastEntry.getGlobalIndex();
+
+            result = result.stream().filter(e -> !blacklistedEvents.contains(e.getPayloadType()))
+                           .collect(Collectors.toList());
+
             final List<MigrationAggregateStatus> statuses = fetchMigrationStatuses(result);
 
             List<Event> events = new ArrayList<>();
             for (DomainEvent entry : result) {
                 if (entry.getGlobalIndex() != lastProcessedToken + 1 && recentEvent(entry)) {
                     logger.error("Missing event at: {}, found globalIndex {}, stopping migration",
-                            (lastProcessedToken + 1),
+                                 (lastProcessedToken + 1),
                             entry.getGlobalIndex());
                     keepRunning = false;
                     break;
@@ -199,7 +210,6 @@ public class MigrationRunner implements CommandLineRunner {
 
                 Event event = buildEvent(entry, statuses);
                 events.add(event);
-                lastProcessedToken = entry.getGlobalIndex();
             }
 
             storeEvents(events);
@@ -251,11 +261,17 @@ public class MigrationRunner implements CommandLineRunner {
     }
 
     private void storeEvents(List<Event> events) throws ExecutionException, InterruptedException, TimeoutException {
+        if (events.isEmpty()) {
+            return;
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("Store {} events", events.size());
+        }
         try {
             axonDBClient.getConnection()
-                    .eventChannel()
-                    .appendEvents(events.toArray(new Event[0]))
-                    .get(30, TimeUnit.SECONDS);
+                        .eventChannel()
+                        .appendEvents(events.toArray(new Event[0]))
+                        .get(30, TimeUnit.SECONDS);
         } catch (Exception e) {
             if (e.getMessage() == null || !e.getMessage().contains("OUT_OF_RANGE")) {
                 throw e;
