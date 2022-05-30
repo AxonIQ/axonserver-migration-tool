@@ -223,13 +223,9 @@ public class MigrationRunner implements CommandLineRunner {
                 .filter(e -> e.getType() != null)
                 .map(DomainEvent::getAggregateIdentifier)
                 .distinct()
-                .map(aggregateId -> {
-                    final MigrationAggregateStatus existing = aggregateStatusRepository.findByAggregateIdentifier(aggregateId);
-                    if (existing != null) {
-                        return existing;
-                    }
-                    return new MigrationAggregateStatus(aggregateId);
-                })
+                .map(aggregateId -> aggregateStatusRepository
+                        .findById(aggregateId)
+                        .orElseGet(() -> new MigrationAggregateStatus(aggregateId)))
                 .collect(Collectors.toList());
     }
 
