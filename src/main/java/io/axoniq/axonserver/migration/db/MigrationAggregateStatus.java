@@ -9,7 +9,7 @@ import javax.persistence.*;
  */
 @Entity
 @Cacheable(false)
-@Table(indexes = @Index(columnList = "aggregateType, aggregateIdentifier", unique = true)
+@Table(indexes = @Index(columnList = "aggregateIdentifier", unique = true)
 )
 public class MigrationAggregateStatus {
     @Id
