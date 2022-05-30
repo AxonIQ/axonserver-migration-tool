@@ -57,8 +57,8 @@ public class MigrationRunner implements CommandLineRunner {
     @Value("${axoniq.migration.migrateEvents:true}")
     private boolean migrateEvents;
 
-    @Value("${axoniq.migration.blacklist:}")
-    private List<String> blacklistedEvents;
+    @Value("${axoniq.migration.ignoredEvents:}")
+    private List<String> ignoredEvents;
 
     private final AtomicLong snapshotsMigrated = new AtomicLong();
     private final AtomicLong eventsMigrated = new AtomicLong();
@@ -187,7 +187,7 @@ public class MigrationRunner implements CommandLineRunner {
             DomainEvent lastEntry = result.get(result.size() - 1);
             lastProcessedToken = lastEntry.getGlobalIndex();
 
-            result = result.stream().filter(e -> !blacklistedEvents.contains(e.getPayloadType()))
+            result = result.stream().filter(e -> !ignoredEvents.contains(e.getPayloadType()))
                            .collect(Collectors.toList());
 
             final List<MigrationAggregateStatus> statuses = fetchMigrationStatuses(result);
