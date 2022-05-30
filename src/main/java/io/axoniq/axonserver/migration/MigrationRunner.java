@@ -23,13 +23,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -227,14 +221,14 @@ public class MigrationRunner implements CommandLineRunner {
     private List<MigrationAggregateStatus> fetchMigrationStatuses(List<? extends DomainEvent> events) {
         return events.stream()
                 .filter(e -> e.getType() != null)
-                .map(e -> Arrays.asList(e.getType(), e.getAggregateIdentifier()))
+                .map(DomainEvent::getAggregateIdentifier)
                 .distinct()
-                .map(pair -> {
-                    final MigrationAggregateStatus existing = aggregateStatusRepository.findByAggregateTypeAndAggregateIdentifier(pair.get(0), pair.get(1));
+                .map(aggregateId -> {
+                    final MigrationAggregateStatus existing = aggregateStatusRepository.findByAggregateIdentifier(aggregateId);
                     if (existing != null) {
                         return existing;
                     }
-                    return new MigrationAggregateStatus(pair.get(0), pair.get(1));
+                    return new MigrationAggregateStatus(aggregateId);
                 })
                 .collect(Collectors.toList());
     }
@@ -246,7 +240,7 @@ public class MigrationRunner implements CommandLineRunner {
 
         if (entry.getType() != null) {
             final MigrationAggregateStatus aggregateStatus = statuses.stream()
-                    .filter(s -> Objects.equals(s.getAggregateType(), entry.getType()) && Objects.equals(s.getAggregateIdentifier(), entry.getAggregateIdentifier()))
+                    .filter(s -> Objects.equals(s.getAggregateIdentifier(), entry.getAggregateIdentifier()))
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("No correct aggregate status found"));
 

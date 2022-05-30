@@ -14,26 +14,19 @@ import javax.persistence.*;
 public class MigrationAggregateStatus {
     @Id
     private String aggregateIdentifier;
-
-    private String aggregateType;
     private long lastSequenceNumber = -1;
 
 
     public MigrationAggregateStatus() {
     }
 
-    public MigrationAggregateStatus(final String aggregateType, final String aggregateIdentifier) {
-        this.aggregateType = aggregateType;
+    public MigrationAggregateStatus(final String aggregateIdentifier) {
         this.aggregateIdentifier = aggregateIdentifier;
     }
 
     public long nextSequenceNumber() {
         lastSequenceNumber += 1;
         return lastSequenceNumber;
-    }
-
-    public String getAggregateType() {
-        return aggregateType;
     }
 
     public String getAggregateIdentifier() {
