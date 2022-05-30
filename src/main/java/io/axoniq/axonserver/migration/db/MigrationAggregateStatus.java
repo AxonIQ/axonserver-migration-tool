@@ -13,11 +13,9 @@ import javax.persistence.*;
 )
 public class MigrationAggregateStatus {
     @Id
-    @GeneratedValue
-    private long id;
+    private String aggregateIdentifier;
 
     private String aggregateType;
-    private String aggregateIdentifier;
     private long lastSequenceNumber = -1;
 
 
@@ -32,10 +30,6 @@ public class MigrationAggregateStatus {
     public long nextSequenceNumber() {
         lastSequenceNumber += 1;
         return lastSequenceNumber;
-    }
-
-    public long getId() {
-        return id;
     }
 
     public String getAggregateType() {
