@@ -12,8 +12,6 @@ import org.axonframework.axonserver.connector.util.GrpcMetaDataConverter;
 import org.axonframework.messaging.MetaData;
 import org.axonframework.serialization.SerializedMetaData;
 import org.axonframework.serialization.Serializer;
-import org.mapdb.DB;
-import org.mapdb.DBMaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +46,7 @@ public class MigrationRunner implements CommandLineRunner {
     private final MigrationStatusRepository migrationStatusRepository;
     private final Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
     private final GrpcMetaDataConverter grpcMetaDataConverter;
+    private final SequenceProvider sequenceProvider;
 
     @Value("${axoniq.migration.batchSize:100}")
     private int batchSize;
@@ -74,31 +73,17 @@ public class MigrationRunner implements CommandLineRunner {
     private final AtomicLong lastReported = new AtomicLong();
     private final ApplicationContext context;
 
-    private final DB db;
-    private final Map<String, Integer> skippedEventsMap;
-
     public MigrationRunner(EventProducer eventProducer, Serializer serializer,
                            MigrationStatusRepository migrationStatusRepository,
                            AxonServerConnectionManager axonDBClient,
-                           ApplicationContext context,
-                           @Value("${axoniq.migration.ignoredEventsFile:skipped_events.db}")
-                           String ignoredEventsFile) {
+                           SequenceProvider sequenceProvider, ApplicationContext context) {
         this.eventProducer = eventProducer;
         this.axonDBClient = axonDBClient;
         this.serializer = serializer;
         this.migrationStatusRepository = migrationStatusRepository;
+        this.sequenceProvider = sequenceProvider;
         this.context = context;
         this.grpcMetaDataConverter = new GrpcMetaDataConverter(this.serializer);
-
-        this.db = DBMaker.fileDB(ignoredEventsFile).fileMmapEnable().make();
-        this.skippedEventsMap = db
-                .hashMap("map", org.mapdb.Serializer.STRING, org.mapdb.Serializer.INTEGER)
-                .createOrOpen();
-    }
-
-    @PreDestroy
-    public void destroy() {
-        db.close();
     }
 
     @Override
@@ -217,13 +202,9 @@ public class MigrationRunner implements CommandLineRunner {
             List<Event> events = new ArrayList<>();
             for (DomainEvent entry : result) {
                 if (ignoredEvents.contains(entry.getPayloadType())) {
-                    if (entry.getType() != null) {
-                        // Increase the skip count
-                        Integer currentSkip = skippedEventsMap.getOrDefault(entry.getAggregateIdentifier(), 0);
-                        skippedEventsMap.put(entry.getAggregateIdentifier(), currentSkip + 1);
-                    }
                     continue;
                 }
+
                 if (entry.getGlobalIndex() != lastProcessedToken + 1 && recentEvent(entry)) {
                     logger.error("Missing event at: {}, found globalIndex {}, stopping migration",
                                  (lastProcessedToken + 1),
@@ -240,24 +221,21 @@ public class MigrationRunner implements CommandLineRunner {
 
             if (eventsMigrated.addAndGet(events.size()) > lastReported.get() + 1000) {
                 lastReported.set(eventsMigrated.intValue());
-                logger.debug("Current size of skipped event aggregates: {}", skippedEventsMap.size());
                 logger.debug("Migrated {} events", eventsMigrated.get());
             }
             migrationStatus.setLastEventGlobalIndex(lastProcessedToken);
             migrationStatusRepository.save(migrationStatus);
-            db.commit();
         }
     }
 
-    private Event buildEvent(final DomainEvent entry) {
+    private Event buildEvent(final DomainEvent entry) throws ExecutionException, InterruptedException {
         Event.Builder eventBuilder = Event.newBuilder()
                                           .setPayload(toPayload(entry))
                                           .setMessageIdentifier(entry.getEventIdentifier());
 
         if (entry.getType() != null) {
-            Integer currentSkip = skippedEventsMap.getOrDefault(entry.getAggregateIdentifier(), 0);
             eventBuilder.setAggregateType(entry.getType())
-                        .setAggregateSequenceNumber(entry.getSequenceNumber() - currentSkip)
+                        .setAggregateSequenceNumber(sequenceProvider.getNextSequenceForAggregate(entry.getAggregateIdentifier()))
                         .setAggregateIdentifier(entry.getAggregateIdentifier());
         }
 
