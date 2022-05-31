@@ -63,6 +63,9 @@ public class MigrationRunner implements CommandLineRunner {
     @Value("${axoniq.migration.continuous:false}")
     private boolean continuous;
 
+    @Value("${axoniq.migration.continuousTimeout:100}")
+    private int continuousTimeout;
+
     @Value("${axoniq.migration.ignoredEvents:}")
     private List<String> ignoredEvents;
 
@@ -197,7 +200,7 @@ public class MigrationRunner implements CommandLineRunner {
             if (result.isEmpty()) {
                 if(continuous) {
                     logger.info("No more events found, waiting for new events because of continuous flag");
-                    Thread.sleep(500);
+                    Thread.sleep(continuousTimeout);
                 } else {
                     logger.info("No more events found, stopping migration");
                     return;
