@@ -5,8 +5,6 @@ import com.google.protobuf.ByteString;
 import io.axoniq.axonserver.grpc.MetaDataValue;
 import io.axoniq.axonserver.grpc.SerializedObject;
 import io.axoniq.axonserver.grpc.event.Event;
-import io.axoniq.axonserver.migration.db.MigrationAggregateStatus;
-import io.axoniq.axonserver.migration.db.MigrationAggregateStatusRepository;
 import io.axoniq.axonserver.migration.db.MigrationStatus;
 import io.axoniq.axonserver.migration.db.MigrationStatusRepository;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
@@ -14,6 +12,8 @@ import org.axonframework.axonserver.connector.util.GrpcMetaDataConverter;
 import org.axonframework.messaging.MetaData;
 import org.axonframework.serialization.SerializedMetaData;
 import org.axonframework.serialization.Serializer;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,12 +23,16 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
+import javax.annotation.PreDestroy;
 
 
 /**
@@ -44,7 +48,6 @@ public class MigrationRunner implements CommandLineRunner {
     private final MigrationStatusRepository migrationStatusRepository;
     private final Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
     private final GrpcMetaDataConverter grpcMetaDataConverter;
-    private final MigrationAggregateStatusRepository aggregateStatusRepository;
 
     @Value("${axoniq.migration.batchSize:100}")
     private int batchSize;
@@ -65,18 +68,26 @@ public class MigrationRunner implements CommandLineRunner {
     private final AtomicLong lastReported = new AtomicLong();
     private final ApplicationContext context;
 
+    private final DB db = DBMaker.fileDB("skipped_events.db").fileMmapEnable().make();
+    private final Map<String, Integer> skippedEventsMap = db
+            .hashMap("map", org.mapdb.Serializer.STRING, org.mapdb.Serializer.INTEGER)
+            .createOrOpen();
+
     public MigrationRunner(EventProducer eventProducer, Serializer serializer,
                            MigrationStatusRepository migrationStatusRepository,
                            AxonServerConnectionManager axonDBClient,
-                           final MigrationAggregateStatusRepository aggregateStatusRepository,
                            ApplicationContext context) {
         this.eventProducer = eventProducer;
         this.axonDBClient = axonDBClient;
         this.serializer = serializer;
         this.migrationStatusRepository = migrationStatusRepository;
-        this.aggregateStatusRepository = aggregateStatusRepository;
         this.context = context;
         this.grpcMetaDataConverter = new GrpcMetaDataConverter(this.serializer);
+    }
+
+    @PreDestroy
+    public void destroy() {
+        db.close();
     }
 
     @Override
@@ -187,22 +198,25 @@ public class MigrationRunner implements CommandLineRunner {
             DomainEvent lastEntry = result.get(result.size() - 1);
             lastProcessedToken = lastEntry.getGlobalIndex();
 
-            result = result.stream().filter(e -> !ignoredEvents.contains(e.getPayloadType()))
-                           .collect(Collectors.toList());
-
-            final List<MigrationAggregateStatus> statuses = fetchMigrationStatuses(result);
-
             List<Event> events = new ArrayList<>();
             for (DomainEvent entry : result) {
+                if (ignoredEvents.contains(entry.getPayloadType())) {
+                    if (entry.getType() != null) {
+                        // Increase the skip count
+                        Integer currentSkip = skippedEventsMap.getOrDefault(entry.getAggregateIdentifier(), 0);
+                        skippedEventsMap.put(entry.getAggregateIdentifier(), currentSkip + 1);
+                    }
+                    continue;
+                }
                 if (entry.getGlobalIndex() != lastProcessedToken + 1 && recentEvent(entry)) {
                     logger.error("Missing event at: {}, found globalIndex {}, stopping migration",
                                  (lastProcessedToken + 1),
-                            entry.getGlobalIndex());
+                                 entry.getGlobalIndex());
                     keepRunning = false;
                     break;
                 }
 
-                Event event = buildEvent(entry, statuses);
+                Event event = buildEvent(entry);
                 events.add(event);
             }
 
@@ -214,35 +228,20 @@ public class MigrationRunner implements CommandLineRunner {
             }
             migrationStatus.setLastEventGlobalIndex(lastProcessedToken);
             migrationStatusRepository.save(migrationStatus);
-            aggregateStatusRepository.saveAll(statuses);
+            db.commit();
         }
     }
 
-    private List<MigrationAggregateStatus> fetchMigrationStatuses(List<? extends DomainEvent> events) {
-        return events.stream()
-                .filter(e -> e.getType() != null)
-                .map(DomainEvent::getAggregateIdentifier)
-                .distinct()
-                .map(aggregateId -> aggregateStatusRepository
-                        .findById(aggregateId)
-                        .orElseGet(() -> new MigrationAggregateStatus(aggregateId)))
-                .collect(Collectors.toList());
-    }
-
-    private Event buildEvent(final DomainEvent entry, final List<MigrationAggregateStatus> statuses) {
+    private Event buildEvent(final DomainEvent entry) {
         Event.Builder eventBuilder = Event.newBuilder()
-                .setPayload(toPayload(entry))
-                .setMessageIdentifier(entry.getEventIdentifier());
+                                          .setPayload(toPayload(entry))
+                                          .setMessageIdentifier(entry.getEventIdentifier());
 
         if (entry.getType() != null) {
-            final MigrationAggregateStatus aggregateStatus = statuses.stream()
-                    .filter(s -> Objects.equals(s.getAggregateIdentifier(), entry.getAggregateIdentifier()))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("No correct aggregate status found"));
-
+            Integer currentSkip = skippedEventsMap.getOrDefault(entry.getAggregateIdentifier(), 0);
             eventBuilder.setAggregateType(entry.getType())
-                    .setAggregateSequenceNumber(aggregateStatus.nextSequenceNumber())
-                    .setAggregateIdentifier(entry.getAggregateIdentifier());
+                        .setAggregateSequenceNumber(entry.getSequenceNumber() - currentSkip)
+                        .setAggregateIdentifier(entry.getAggregateIdentifier());
         }
 
         eventBuilder.setTimestamp(entry.getTimeStampAsLong());
