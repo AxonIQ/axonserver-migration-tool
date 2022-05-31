@@ -1,4 +1,4 @@
-package io.axoniq.axonserver.migration;
+package io.axoniq.axonserver.migration.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @ConfigurationProperties("axon.serializer")
 @Configuration
-public class MigrationProperties {
+public class SerializerProperties {
     private SerializerType events = SerializerType.DEFAULT;
 
     public SerializerType getEvents() {

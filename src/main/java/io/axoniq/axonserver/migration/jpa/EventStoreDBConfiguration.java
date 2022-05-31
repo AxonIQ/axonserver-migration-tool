@@ -41,8 +41,6 @@ public class EventStoreDBConfiguration {
             properties.put("hibernate.physical_naming_strategy", SpringPhysicalNamingStrategy.class.getName());
             properties.put("hibernate.implicit_naming_strategy", SpringImplicitNamingStrategy.class.getName());
         }
-//        properties.put("hibernate.show_sql", "true");
-//        properties.put("hibernate.format_sql", "true");
 
         return builder
                 .dataSource(eventStoreDataSource())
@@ -68,7 +66,6 @@ public class EventStoreDBConfiguration {
 
     @Bean
     @Primary
-    @ConfigurationProperties("axoniq.datasource.eventstore")
     public DataSource eventStoreDataSource() {
         return eventStoreDataSourceProperties().initializeDataSourceBuilder().build();
     }

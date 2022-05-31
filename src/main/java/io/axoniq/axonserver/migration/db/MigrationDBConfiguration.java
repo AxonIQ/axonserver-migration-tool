@@ -23,10 +23,12 @@ import javax.sql.DataSource;
  * @author Marc Gathier
  */
 @Configuration
-@EnableJpaRepositories(basePackages = "io.axoniq.axonserver.migration.db",
-        entityManagerFactoryRef = "migrationEntityManagerFactory")
+@EnableJpaRepositories(
+        basePackages = "io.axoniq.axonserver.migration.db",
+        entityManagerFactoryRef = "migrationEntityManagerFactory"
+)
 @EnableTransactionManagement
-public class    MigrationDBConfiguration {
+public class MigrationDBConfiguration {
 
     @Bean
     @Qualifier("migrationEntityManagerFactory")
@@ -36,8 +38,6 @@ public class    MigrationDBConfiguration {
         properties.put("hibernate.hbm2ddl.auto", "update");
         properties.put("hibernate.physical_naming_strategy", SpringPhysicalNamingStrategy.class.getName());
         properties.put("hibernate.implicit_naming_strategy", SpringImplicitNamingStrategy.class.getName());
-//        properties.put("hibernate.show_sql", "true");
-//        properties.put("hibernate.format_sql", "true");
         return builder
                 .dataSource(migrationDataSource())
                 .packages("io.axoniq.axonserver.migration.db")
@@ -54,7 +54,6 @@ public class    MigrationDBConfiguration {
     }
 
     @Bean
-    @ConfigurationProperties("axoniq.datasource.migration")
     public DataSource migrationDataSource() {
         return migrationDataSourceProperties().initializeDataSourceBuilder().build();
     }

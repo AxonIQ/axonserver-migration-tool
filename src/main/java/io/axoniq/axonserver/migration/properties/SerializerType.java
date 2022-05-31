@@ -1,4 +1,4 @@
-package io.axoniq.axonserver.migration;
+package io.axoniq.axonserver.migration.properties;
 
 /**
  * @author Marc Gathier

@@ -24,11 +24,6 @@ public class JpaEventProcessor implements EventProducer {
     private EntityManager entityManager;
 
 
-    public JpaEventProcessor() {
-
-    }
-
-
     @Override
     public List<? extends DomainEvent> findEvents(long lastProcessedToken, int batchSize) {
         return entityManager.createNamedQuery("DomainEventEntry.findByGlobalIndex", DomainEventEntry.class)

@@ -1,5 +1,7 @@
 package io.axoniq.axonserver.migration;
 
+import io.axoniq.axonserver.migration.properties.SerializerProperties;
+import io.axoniq.axonserver.migration.properties.SerializerType;
 import org.axonframework.axonserver.connector.AxonServerConfiguration;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
 import org.axonframework.serialization.Serializer;
@@ -28,8 +30,8 @@ public class AxonConfiguration {
     }
 
     @Bean
-    public Serializer serializer(MigrationProperties migrationProperties) {
-        if (SerializerType.JACKSON.equals(migrationProperties.getEvents())) {
+    public Serializer serializer(SerializerProperties serializerProperties) {
+        if (SerializerType.JACKSON.equals(serializerProperties.getEvents())) {
             return JacksonSerializer.builder().build();
         }
         return XStreamSerializer.defaultSerializer();
