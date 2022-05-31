@@ -74,21 +74,26 @@ public class MigrationRunner implements CommandLineRunner {
     private final AtomicLong lastReported = new AtomicLong();
     private final ApplicationContext context;
 
-    private final DB db = DBMaker.fileDB("skipped_events.db").fileMmapEnable().make();
-    private final Map<String, Integer> skippedEventsMap = db
-            .hashMap("map", org.mapdb.Serializer.STRING, org.mapdb.Serializer.INTEGER)
-            .createOrOpen();
+    private final DB db;
+    private final Map<String, Integer> skippedEventsMap;
 
     public MigrationRunner(EventProducer eventProducer, Serializer serializer,
                            MigrationStatusRepository migrationStatusRepository,
                            AxonServerConnectionManager axonDBClient,
-                           ApplicationContext context) {
+                           ApplicationContext context,
+                           @Value("${axoniq.migration.ignoredEventsFile:skipped_events.db}")
+                           String ignoredEventsFile) {
         this.eventProducer = eventProducer;
         this.axonDBClient = axonDBClient;
         this.serializer = serializer;
         this.migrationStatusRepository = migrationStatusRepository;
         this.context = context;
         this.grpcMetaDataConverter = new GrpcMetaDataConverter(this.serializer);
+
+        this.db = DBMaker.fileDB(ignoredEventsFile).fileMmapEnable().make();
+        this.skippedEventsMap = db
+                .hashMap("map", org.mapdb.Serializer.STRING, org.mapdb.Serializer.INTEGER)
+                .createOrOpen();
     }
 
     @PreDestroy
