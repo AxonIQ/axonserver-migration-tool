@@ -60,6 +60,9 @@ public class MigrationRunner implements CommandLineRunner {
     @Value("${axoniq.migration.migrateEvents:true}")
     private boolean migrateEvents;
 
+    @Value("${axoniq.migration.continuous:false}")
+    private boolean continuous;
+
     @Value("${axoniq.migration.ignoredEvents:}")
     private List<String> ignoredEvents;
 
@@ -192,8 +195,13 @@ public class MigrationRunner implements CommandLineRunner {
         while (keepRunning) {
             List<? extends DomainEvent> result = eventProducer.findEvents(lastProcessedToken, batchSize);
             if (result.isEmpty()) {
-                logger.info("No more events found");
-                return;
+                if(continuous) {
+                    logger.info("No more events found, waiting for new events because of continuous flag");
+                    Thread.sleep(500);
+                } else {
+                    logger.info("No more events found, stopping migration");
+                    return;
+                }
             }
             DomainEvent lastEntry = result.get(result.size() - 1);
             lastProcessedToken = lastEntry.getGlobalIndex();
@@ -224,6 +232,7 @@ public class MigrationRunner implements CommandLineRunner {
 
             if (eventsMigrated.addAndGet(events.size()) > lastReported.get() + 1000) {
                 lastReported.set(eventsMigrated.intValue());
+                logger.debug("Current size of skipped event aggregates: {}", skippedEventsMap.size());
                 logger.debug("Migrated {} events", eventsMigrated.get());
             }
             migrationStatus.setLastEventGlobalIndex(lastProcessedToken);
