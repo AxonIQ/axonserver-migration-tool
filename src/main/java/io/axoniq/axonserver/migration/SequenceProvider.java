@@ -1,45 +1,66 @@
 package io.axoniq.axonserver.migration;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+import io.axoniq.axonserver.migration.properties.MigrationProperties;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class SequenceProvider {
 
-    private final AxonServerConnectionManager axonDBClient;
+    private final Logger logger = LoggerFactory.getLogger(SequenceProvider.class);
 
-    Cache<String, Long> cache = Caffeine.newBuilder()
-                                        .expireAfterWrite(1, TimeUnit.MINUTES)
-                                        .maximumSize(10000)
-                                        .build();
+    private final AxonServerConnectionManager connectionManager;
+    private final MigrationProperties migrationProperties;
+    private final Map<String, Long> sequenceMap = new HashMap<>();
+    private int clearCount = 0;
 
     @Autowired
-    public SequenceProvider(AxonServerConnectionManager axonDBClient) {
-        this.axonDBClient = axonDBClient;
+    public SequenceProvider(AxonServerConnectionManager axonDBClient, MigrationProperties migrationProperties) {
+        this.connectionManager = axonDBClient;
+        this.migrationProperties = migrationProperties;
     }
 
-    public Long getNextSequenceForAggregate(String aggregateIdentifier) {
-        Long currentSequence = cache.get(aggregateIdentifier, s -> {
-            try {
-                return axonDBClient.getConnection().eventChannel().findHighestSequence(s).get();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
-            }
-        });
+    /**
+     * Clears the map cache, so for every batch the identifiers will be fetched from Axon Server and will be consistent.
+     * Should be cleared after every batch, and never during a batch.
+     *
+     * Can be tuned using the {@code axoniq.migration.cacheLongevity} property, defaulting to a clear every 30 resets.
+     * This means the cache is cleared every 30 batches, to prevent it from growing too large.
+     */
+    public void clearCache() {
+        clearCount += 1;
+        if(clearCount % migrationProperties.getCacheLongevity() == 0) {
+            logger.info("Clearing {} entries from the sequence cache", sequenceMap.size());
+            sequenceMap.clear();
+        }
+    }
+
+    public synchronized Long getNextSequenceForAggregate(String aggregateIdentifier) {
+        Long currentSequence = sequenceMap.computeIfAbsent(aggregateIdentifier,
+                                                           s -> getCurrentSequence(aggregateIdentifier));
         if (currentSequence == null) {
             currentSequence = -1L;
         }
 
         Long newSequence = currentSequence + 1;
-        cache.put(aggregateIdentifier, newSequence);
+        sequenceMap.put(aggregateIdentifier, newSequence);
         return newSequence;
+    }
+
+    private synchronized Long getCurrentSequence(String s) {
+        try {
+            return connectionManager.getConnection().eventChannel().findHighestSequence(s).get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -48,7 +48,7 @@ public class MigrationRunner implements CommandLineRunner {
 
     @Override
     public void run(String... options) throws Exception {
-        if (migrators.size() == 0) {
+        if (migrators.isEmpty()) {
             throw new IllegalArgumentException("There are no Migrators to run. Did you disable all migrations?");
         }
         do {

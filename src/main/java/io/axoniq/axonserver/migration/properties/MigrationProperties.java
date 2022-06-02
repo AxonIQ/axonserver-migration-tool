@@ -19,6 +19,7 @@ public class MigrationProperties {
      *
      */
     private int batchSize = 100;
+    private int cacheLongevity = 30;
     private int recentMillis = 10000;
 
     private boolean migrateSnapshots = true;
@@ -30,6 +31,10 @@ public class MigrationProperties {
 
     public int getBatchSize() {
         return batchSize;
+    }
+
+    public int getCacheLongevity() {
+        return cacheLongevity;
     }
 
     public boolean isMigrateSnapshots() {
@@ -82,5 +87,9 @@ public class MigrationProperties {
 
     public void setRecentMillis(int recentMillis) {
         this.recentMillis = recentMillis;
+    }
+
+    public void setCacheLongevity(int cacheLongevity) {
+        this.cacheLongevity = cacheLongevity;
     }
 }

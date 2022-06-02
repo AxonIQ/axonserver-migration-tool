@@ -76,10 +76,12 @@ public class EventMigrator extends AbstractMigrator {
                     migrationProperties.getBatchSize());
 
         while (true) {
+            sequenceProvider.clearCache();
             List<? extends DomainEvent> result = eventProducer.findEvents(lastProcessedToken,
                                                                           migrationProperties.getBatchSize());
             if (result.isEmpty()) {
                 logger.info("No more events found");
+                return;
             }
 
             // Validate the result list and check for gaps.
@@ -107,9 +109,30 @@ public class EventMigrator extends AbstractMigrator {
             lastProcessedToken = lastEntry.getGlobalIndex();
 
             List<Event> events = result
-                    .stream().filter(this::isNotAnIgnoredEventType)
+                    .stream()
+                    .filter(this::isNotAnIgnoredEventType)
                     .map(this::buildEvent)
                     .collect(Collectors.toList());
+
+            // Check for errors and log additional info
+            events.stream().filter(e -> e.getAggregateIdentifier().length() > 0)
+                  .collect(Collectors.groupingBy(Event::getAggregateIdentifier))
+                  .forEach((aggregate, aggregateEvents) -> {
+                      aggregateEvents.stream()
+                                     .collect(Collectors.groupingBy(Event::getAggregateSequenceNumber))
+                                     .forEach((seqNumber, seqNumberEvents) -> {
+                                         if (seqNumberEvents.size() > 1) {
+                                             throw new IllegalStateException(
+                                                     "Multiple events with same sequenceNumber " + seqNumber
+                                                             + " detected for aggregate " + aggregate
+                                                             + ". All sequence numbers for this aggregate: "
+                                                             + aggregateEvents.stream()
+                                                                              .map(Event::getAggregateSequenceNumber)
+                                                                              .collect(Collectors.toList())
+                                             );
+                                         }
+                                     });
+                  });
 
             storeEvents(events);
 
@@ -152,10 +175,20 @@ public class EventMigrator extends AbstractMigrator {
             logger.debug("Storing {} events", events.size());
         }
 
-        axonDBClient.getConnection()
-                    .eventChannel()
-                    .appendEvents(events.toArray(new Event[0]))
-                    .get(30, TimeUnit.SECONDS);
+        try {
+            axonDBClient.getConnection()
+                        .eventChannel()
+                        .appendEvents(events.toArray(new Event[0]))
+                        .get(30, TimeUnit.SECONDS);
+        } catch (Exception exception) {
+            List<String> structure = events.stream()
+                                           .map(e -> String.format("%s___%d",
+                                                                   e.getAggregateIdentifier(),
+                                                                   e.getAggregateSequenceNumber()))
+                                           .collect(Collectors.toList());
+            logger.error("Exception while storing. The event list has the following structure: {}", structure);
+            throw exception;
+        }
     }
 
     private boolean isRecentEvent(DomainEvent entry) {
