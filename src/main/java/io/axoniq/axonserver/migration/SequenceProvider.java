@@ -51,12 +51,15 @@ public class SequenceProvider {
 
         Long newSequence = currentSequence + 1;
         sequenceMap.put(aggregateIdentifier, newSequence);
+        logger.debug("Using sequence {} for aggregate {} from Axon Server", currentSequence, aggregateIdentifier);
         return newSequence;
     }
 
     private synchronized Long getCurrentSequence(String s) {
         try {
-            return connectionManager.getConnection().eventChannel().findHighestSequence(s).get();
+            Long sequence = connectionManager.getConnection().eventChannel().findHighestSequence(s).get();
+            logger.debug("Fetched sequence number {} for aggregate {} from Axon Server", sequence, s);
+            return sequence;
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         } catch (ExecutionException e) {

@@ -187,6 +187,8 @@ public class EventMigrator extends AbstractMigrator {
                                                                    e.getAggregateSequenceNumber()))
                                            .collect(Collectors.toList());
             logger.error("Exception while storing. The event list has the following structure: {}", structure);
+            // Clear any cache on the sequence numbers, it's unreliable now.
+            sequenceProvider.clearCache();
             throw exception;
         }
     }
