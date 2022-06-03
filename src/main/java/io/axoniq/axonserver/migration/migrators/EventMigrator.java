@@ -76,7 +76,7 @@ public class EventMigrator extends AbstractMigrator {
                     migrationProperties.getBatchSize());
 
         while (true) {
-            sequenceProvider.clearCache();
+            sequenceProvider.clearCache(false);
             List<? extends DomainEvent> result = eventProducer.findEvents(lastProcessedToken,
                                                                           migrationProperties.getBatchSize());
             if (result.isEmpty()) {
@@ -188,7 +188,7 @@ public class EventMigrator extends AbstractMigrator {
                                            .collect(Collectors.toList());
             logger.error("Exception while storing. The event list has the following structure: {}", structure);
             // Clear any cache on the sequence numbers, it's unreliable now.
-            sequenceProvider.clearCache();
+            sequenceProvider.clearCache(true);
             throw exception;
         }
     }

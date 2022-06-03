@@ -34,9 +34,9 @@ public class SequenceProvider {
      * Can be tuned using the {@code axoniq.migration.cacheLongevity} property, defaulting to a clear every 30 resets.
      * This means the cache is cleared every 30 batches, to prevent it from growing too large.
      */
-    public void clearCache() {
+    public void clearCache(boolean force) {
         clearCount += 1;
-        if(clearCount % migrationProperties.getCacheLongevity() == 0) {
+        if(force || clearCount % migrationProperties.getCacheLongevity() == 0) {
             logger.info("Clearing {} entries from the sequence cache", sequenceMap.size());
             sequenceMap.clear();
         }
@@ -51,7 +51,7 @@ public class SequenceProvider {
 
         Long newSequence = currentSequence + 1;
         sequenceMap.put(aggregateIdentifier, newSequence);
-        logger.debug("Using sequence {} for aggregate {} from Axon Server", currentSequence, aggregateIdentifier);
+        logger.debug("Using sequence {} for aggregate {}", currentSequence, aggregateIdentifier);
         return newSequence;
     }
 
