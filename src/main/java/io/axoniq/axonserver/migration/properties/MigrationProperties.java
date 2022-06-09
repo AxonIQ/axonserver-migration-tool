@@ -19,22 +19,19 @@ public class MigrationProperties {
      *
      */
     private int batchSize = 100;
-    private int cacheLongevity = 30;
     private int recentMillis = 10000;
 
     private boolean migrateSnapshots = true;
     private boolean migrateEvents = true;
     private List<String> ignoredEvents = Collections.emptyList();
+    private String aggregateSuffix = "";
+    private String skippedEventsFile = "skipped_events.db";
 
     private boolean continuous = false;
     private int continuousTimeout = 100;
 
     public int getBatchSize() {
         return batchSize;
-    }
-
-    public int getCacheLongevity() {
-        return cacheLongevity;
     }
 
     public boolean isMigrateSnapshots() {
@@ -51,6 +48,14 @@ public class MigrationProperties {
 
     public List<String> getIgnoredEvents() {
         return ignoredEvents;
+    }
+
+    public String getAggregateSuffix() {
+        return aggregateSuffix;
+    }
+
+    public String getSkippedEventsFile() {
+        return skippedEventsFile;
     }
 
     public boolean isContinuous() {
@@ -89,7 +94,11 @@ public class MigrationProperties {
         this.recentMillis = recentMillis;
     }
 
-    public void setCacheLongevity(int cacheLongevity) {
-        this.cacheLongevity = cacheLongevity;
+    public void setAggregateSuffix(String aggregateSuffix) {
+        this.aggregateSuffix = aggregateSuffix;
+    }
+
+    public void setSkippedEventsFile(String skippedEventsFile) {
+        this.skippedEventsFile = skippedEventsFile;
     }
 }

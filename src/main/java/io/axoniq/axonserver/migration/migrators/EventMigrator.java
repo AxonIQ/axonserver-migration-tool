@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -76,7 +77,6 @@ public class EventMigrator extends AbstractMigrator {
                     migrationProperties.getBatchSize());
 
         while (true) {
-            sequenceProvider.clearCache(false);
             List<? extends DomainEvent> result = eventProducer.findEvents(lastProcessedToken,
                                                                           migrationProperties.getBatchSize());
             if (result.isEmpty()) {
@@ -110,8 +110,8 @@ public class EventMigrator extends AbstractMigrator {
 
             List<Event> events = result
                     .stream()
-                    .filter(this::isNotAnIgnoredEventType)
                     .map(this::buildEvent)
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
             // Check for errors and log additional info
@@ -144,22 +144,30 @@ public class EventMigrator extends AbstractMigrator {
             }
             migrationStatus.setLastEventGlobalIndex(lastProcessedToken);
             migrationStatusRepository.save(migrationStatus);
+            sequenceProvider.commit();
         }
     }
 
-    private boolean isNotAnIgnoredEventType(DomainEvent entry) {
-        return !migrationProperties.getIgnoredEvents().contains(entry.getPayloadType());
+    private boolean isAnIgnoredEventType(DomainEvent entry) {
+        return migrationProperties.getIgnoredEvents().contains(entry.getPayloadType());
     }
 
     private Event buildEvent(final DomainEvent entry) {
+        if(isAnIgnoredEventType(entry)) {
+            if(entry.getType() != null) {
+                sequenceProvider.reportSkip(entry.getAggregateIdentifier());
+            }
+            return null;
+        }
         Event.Builder eventBuilder = Event.newBuilder()
                                           .setPayload(toPayload(entry))
                                           .setMessageIdentifier(entry.getEventIdentifier());
 
         if (entry.getType() != null) {
+            String aggregateIdentifier = entry.getAggregateIdentifier() + migrationProperties.getAggregateSuffix();
             eventBuilder.setAggregateType(entry.getType())
-                        .setAggregateSequenceNumber(sequenceProvider.getNextSequenceForAggregate(entry.getAggregateIdentifier()))
-                        .setAggregateIdentifier(entry.getAggregateIdentifier());
+                        .setAggregateSequenceNumber(sequenceProvider.getNextSequenceForAggregate(aggregateIdentifier, entry.getSequenceNumber()))
+                        .setAggregateIdentifier(aggregateIdentifier);
         }
 
         eventBuilder.setTimestamp(entry.getTimeStampAsLong());
@@ -188,7 +196,7 @@ public class EventMigrator extends AbstractMigrator {
                                            .collect(Collectors.toList());
             logger.error("Exception while storing. The event list has the following structure: {}", structure);
             // Clear any cache on the sequence numbers, it's unreliable now.
-            sequenceProvider.clearCache(true);
+            sequenceProvider.rollback();
             throw exception;
         }
     }
