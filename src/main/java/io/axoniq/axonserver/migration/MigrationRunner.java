@@ -1,8 +1,9 @@
 package io.axoniq.axonserver.migration;
 
 
-import io.axoniq.axonserver.migration.migrators.AbstractMigrator;
-import io.axoniq.axonserver.migration.properties.MigrationProperties;
+import io.axoniq.axonserver.migration.migrators.Migrator;
+import io.axoniq.axonserver.migration.properties.MigrationBaseProperties;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -17,34 +18,26 @@ import java.util.concurrent.TimeoutException;
 
 
 /**
- * Runs the available {@link AbstractMigrator} beans. Which are available depend on the property configuration.
- *
- * If a continuous migration is specified through {@link MigrationProperties#isContinuous()} the migration will run
- * indefinitely, waiting for {@link MigrationProperties#getContinuousTimeout()} milliseconds before trying again.
- *
- * @see io.axoniq.axonserver.migration.migrators.EventMigrator
- * @see io.axoniq.axonserver.migration.migrators.SnapshotMigrator
+ * Runs the available {@link Migrator} beans. Which are available depend on the property configuration.
+ * <p>
+ * If a continuous migration is specified through {@link MigrationBaseProperties#isContinuous()} the migration will run
+ * indefinitely, waiting for {@link MigrationBaseProperties#getContinuousTimeout()} milliseconds before trying again.
  *
  * @author Marc Gathier
  * @author Mitchell Herrijgers
+ * @see io.axoniq.axonserver.migration.migrators.EventMigrator
+ * @see io.axoniq.axonserver.migration.migrators.SnapshotMigrator
  */
 @Profile("!test")
 @Component
+@RequiredArgsConstructor
 public class MigrationRunner implements CommandLineRunner {
 
-    private final List<AbstractMigrator> migrators;
-    private final MigrationProperties migrationProperties;
     private final Logger logger = LoggerFactory.getLogger(MigrationRunner.class);
 
+    private final List<Migrator> migrators;
+    private final MigrationBaseProperties migrationProperties;
     private final ApplicationContext context;
-
-    public MigrationRunner(List<AbstractMigrator> migrators,
-                           MigrationProperties migrationProperties,
-                           ApplicationContext context) {
-        this.migrators = migrators;
-        this.migrationProperties = migrationProperties;
-        this.context = context;
-    }
 
     @Override
     public void run(String... options) throws Exception {
@@ -53,7 +46,7 @@ public class MigrationRunner implements CommandLineRunner {
         }
         do {
             try {
-                for (AbstractMigrator migrator : migrators) {
+                for (Migrator migrator : migrators) {
                     migrator.migrate();
                 }
                 if(migrationProperties.isContinuous()) {
@@ -71,5 +64,8 @@ public class MigrationRunner implements CommandLineRunner {
 
         logger.info("Migration completed");
         SpringApplication.exit(context);
+
+        Thread.sleep(2000);
+        System.exit(0);
     }
 }

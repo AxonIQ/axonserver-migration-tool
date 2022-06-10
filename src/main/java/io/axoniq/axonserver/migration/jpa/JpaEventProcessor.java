@@ -39,4 +39,18 @@ public class JpaEventProcessor implements EventProducer {
                             .setMaxResults(batchSize)
                             .getResultList();
     }
+
+    @Override
+    public long countEventsAfterGlobalIndex(long lastProcessedToken) {
+        return entityManager.createNamedQuery("DomainEventEntry.countAboveGlobalIndex", Long.class)
+                            .setParameter("lastToken", lastProcessedToken)
+                            .getSingleResult();
+    }
+
+    @Override
+    public long countEventsBeforeGlobalIndex(long lastProcessedToken) {
+        return entityManager.createNamedQuery("DomainEventEntry.countUnderGlobalIndex", Long.class)
+                            .setParameter("lastToken", lastProcessedToken)
+                            .getSingleResult();
+    }
 }

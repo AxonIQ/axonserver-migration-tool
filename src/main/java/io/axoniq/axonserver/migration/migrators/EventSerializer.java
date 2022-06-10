@@ -9,6 +9,7 @@ import org.axonframework.axonserver.connector.util.GrpcMetaDataConverter;
 import org.axonframework.messaging.MetaData;
 import org.axonframework.serialization.SerializedMetaData;
 import org.axonframework.serialization.Serializer;
+import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,19 +18,17 @@ import java.util.Map;
  * Migrates a part of the old non-AxonServer store to the new Axon Server instance.
  * Contains several utility functions that will probably be used by all implementations.
  */
-public abstract class AbstractMigrator {
+@Service
+public class EventSerializer {
     private final Serializer serializer;
     private final GrpcMetaDataConverter grpcMetaDataConverter;
 
-    protected AbstractMigrator(Serializer serializer) {
+    public EventSerializer(Serializer serializer) {
         this.serializer = serializer;
         this.grpcMetaDataConverter = new GrpcMetaDataConverter(this.serializer);
     }
 
-    public abstract void migrate() throws Exception;
-
-
-    protected void convertMetadata(byte[] metadataBytes, Event.Builder eventBuilder) {
+    public void convertMetadata(byte[] metadataBytes, Event.Builder eventBuilder) {
         if (metadataBytes != null) {
             MetaData metaData = serializer.deserialize(new SerializedMetaData<>(metadataBytes, byte[].class));
             Map<String, MetaDataValue> metaDataValues = new HashMap<>();
@@ -38,7 +37,7 @@ public abstract class AbstractMigrator {
         }
     }
 
-    protected SerializedObject toPayload(BaseEvent entry) {
+    public SerializedObject toPayload(BaseEvent entry) {
         SerializedObject.Builder builder = SerializedObject.newBuilder()
                                                            .setData(ByteString.copyFrom(entry.getPayload()))
                                                            .setType(entry.getPayloadType());

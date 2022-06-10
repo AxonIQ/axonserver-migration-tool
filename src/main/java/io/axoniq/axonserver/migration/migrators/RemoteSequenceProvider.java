@@ -1,24 +1,25 @@
-package io.axoniq.axonserver.migration;
+package io.axoniq.axonserver.migration.migrators;
 
-import io.axoniq.axonserver.migration.properties.MigrationProperties;
+import io.axoniq.axonserver.migration.properties.MigrationRemoteProperties;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import javax.annotation.PreDestroy;
 
 @Service
-public class SequenceProvider {
+@ConditionalOnProperty(value = "axoniq.migration.method", havingValue = "REMOTE", matchIfMissing = true)
+public class RemoteSequenceProvider implements SequenceProviderStrategy {
 
     private final DB db;
     private final Map<String, Integer> skippedEventsMap;
 
-
     @Autowired
-    public SequenceProvider(MigrationProperties migrationProperties) {
-        db = DBMaker.fileDB(migrationProperties.getSkippedEventsFile())
+    public RemoteSequenceProvider(MigrationRemoteProperties migrationRemoteProperties) {
+        db = DBMaker.fileDB(migrationRemoteProperties.getSkippedEventsFile())
                     .fileMmapEnable()
                     .transactionEnable()
                     .make();

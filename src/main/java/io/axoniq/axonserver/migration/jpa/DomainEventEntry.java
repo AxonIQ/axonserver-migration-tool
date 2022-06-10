@@ -2,7 +2,13 @@ package io.axoniq.axonserver.migration.jpa;
 
 import io.axoniq.axonserver.migration.DomainEvent;
 
-import javax.persistence.*;
+import javax.persistence.Basic;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Index;
+import javax.persistence.NamedQuery;
+import javax.persistence.Table;
 
 /**
  * @author Marc Gathier
@@ -15,6 +21,8 @@ import javax.persistence.*;
         )}
 )
 @NamedQuery(name = "DomainEventEntry.findByGlobalIndex", query = "select e from DomainEventEntry e where e.globalIndex > :lastToken order by e.globalIndex asc")
+@NamedQuery(name = "DomainEventEntry.countAboveGlobalIndex", query = "select count(e) from DomainEventEntry e where e.globalIndex > :lastToken")
+@NamedQuery(name = "DomainEventEntry.countUnderGlobalIndex", query = "select count(e) from DomainEventEntry e where e.globalIndex <= :lastToken")
 public class DomainEventEntry extends BaseEventEntry implements DomainEvent {
     @Id
     @GeneratedValue

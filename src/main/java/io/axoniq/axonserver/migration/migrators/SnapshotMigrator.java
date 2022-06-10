@@ -6,9 +6,9 @@ import io.axoniq.axonserver.migration.EventProducer;
 import io.axoniq.axonserver.migration.SnapshotEvent;
 import io.axoniq.axonserver.migration.db.MigrationStatus;
 import io.axoniq.axonserver.migration.db.MigrationStatusRepository;
-import io.axoniq.axonserver.migration.properties.MigrationProperties;
+import io.axoniq.axonserver.migration.properties.MigrationBaseProperties;
+import lombok.RequiredArgsConstructor;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
-import org.axonframework.serialization.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -16,9 +16,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 
@@ -33,29 +30,20 @@ import java.util.concurrent.atomic.AtomicLong;
 @Profile("!test")
 @Component
 @ConditionalOnProperty(value = "axoniq.migration.migrateSnapshots", havingValue = "true", matchIfMissing = true)
-public class SnapshotMigrator extends AbstractMigrator {
+@RequiredArgsConstructor
+public class SnapshotMigrator implements Migrator {
 
-    private final MigrationProperties migrationProperties;
+    private final MigrationBaseProperties migrationProperties;
     private final EventProducer eventProducer;
     private final AxonServerConnectionManager axonDBClient;
     private final MigrationStatusRepository migrationStatusRepository;
+    private final EventSerializer eventSerializer;
+    private final EventStoreStrategy eventStoreStrategy;
     private final Logger logger = LoggerFactory.getLogger(SnapshotMigrator.class);
 
     private final AtomicLong snapshotsMigrated = new AtomicLong();
 
-    public SnapshotMigrator(MigrationProperties migrationProperties,
-                            EventProducer eventProducer,
-                            Serializer serializer,
-                            MigrationStatusRepository migrationStatusRepository,
-                            AxonServerConnectionManager axonDBClient) {
-        super(serializer);
-        this.migrationProperties = migrationProperties;
-        this.eventProducer = eventProducer;
-        this.axonDBClient = axonDBClient;
-        this.migrationStatusRepository = migrationStatusRepository;
-    }
-
-    public void migrate() throws InterruptedException, ExecutionException, TimeoutException {
+    public void migrate() throws Exception {
         MigrationStatus migrationStatus = migrationStatusRepository.findById(1L).orElse(new MigrationStatus());
 
         String lastProcessedTimestamp = migrationStatus.getLastSnapshotTimestamp();
@@ -87,16 +75,15 @@ public class SnapshotMigrator extends AbstractMigrator {
 
                     Event.Builder eventBuilder = Event.newBuilder()
                                                       .setAggregateIdentifier(entry.getAggregateIdentifier())
-                                                      .setPayload(toPayload(entry))
+                                                      .setPayload(eventSerializer.toPayload(entry))
                                                       .setAggregateSequenceNumber(entry.getSequenceNumber())
                                                       .setMessageIdentifier(entry.getEventIdentifier())
                                                       .setAggregateType(entry.getType());
 
                     eventBuilder.setTimestamp(entry.getTimeStampAsLong());
-                    convertMetadata(entry.getMetaData(), eventBuilder);
+                    eventSerializer.convertMetadata(entry.getMetaData(), eventBuilder);
+                    eventStoreStrategy.appendSnapshot(eventBuilder.build());
 
-                    axonDBClient.getConnection().eventChannel().appendSnapshot(eventBuilder.build()).get(30,
-                                                                                                         TimeUnit.SECONDS);
                     lastProcessedTimestamp = entry.getTimeStamp();
                     lastEventId = entry.getEventIdentifier();
                     if (snapshotsMigrated.incrementAndGet() % 1000 == 0) {
