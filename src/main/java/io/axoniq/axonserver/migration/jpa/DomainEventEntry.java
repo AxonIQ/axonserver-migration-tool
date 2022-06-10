@@ -21,8 +21,8 @@ import javax.persistence.Table;
         )}
 )
 @NamedQuery(name = "DomainEventEntry.findByGlobalIndex", query = "select e from DomainEventEntry e where e.globalIndex > :lastToken order by e.globalIndex asc")
-@NamedQuery(name = "DomainEventEntry.countAboveGlobalIndex", query = "select count(e) from DomainEventEntry e where e.globalIndex > :lastToken")
-@NamedQuery(name = "DomainEventEntry.countUnderGlobalIndex", query = "select count(e) from DomainEventEntry e where e.globalIndex <= :lastToken")
+@NamedQuery(name = "DomainEventEntry.maxGlobalIndex", query = "select max(e.globalIndex) from DomainEventEntry e")
+@NamedQuery(name = "DomainEventEntry.minGlobalIndex", query = "select min(e.globalIndex) from DomainEventEntry e")
 public class DomainEventEntry extends BaseEventEntry implements DomainEvent {
     @Id
     @GeneratedValue

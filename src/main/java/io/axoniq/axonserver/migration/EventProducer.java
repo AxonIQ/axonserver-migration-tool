@@ -11,11 +11,11 @@ public interface EventProducer {
 
     List<? extends SnapshotEvent> findSnapshots(String lastProcessedTimestamp, int batchSize);
 
-    default long countEventsAfterGlobalIndex(long lastProcessedToken) {
+    default long getMaxIndex() {
         return -1; // -1 indicates not supported
     }
 
-    default long countEventsBeforeGlobalIndex(long lastProcessedToken) {
+    default long getMinIndex() {
         return -1; // -1 indicates not supported
     }
 }

@@ -19,26 +19,23 @@ public class EventMigratorStatisticsReporter {
     private final Logger logger = LoggerFactory.getLogger(EventMigratorStatisticsReporter.class);
     private final EventProducer eventProducer;
     private boolean enabled = true;
+    private long startToken = 0;
     private long lastProcessedToken = 0;
     private long numberStored = 0;
     private long numberSkipped = 0;
     private Instant timeStarted;
+    private long minGlobalIndex;
+    private long maxGlobalIndex;
 
     public void initialize(long lastProcessedToken) {
-        long eventsAfter = eventProducer.countEventsAfterGlobalIndex(lastProcessedToken);
-        long eventsBefore = eventProducer.countEventsBeforeGlobalIndex(lastProcessedToken);
-        if (eventsAfter == -1) {
-            enabled = false;
-            return;
-        }
+        this.minGlobalIndex = eventProducer.getMinIndex();
+        this.maxGlobalIndex = eventProducer.getMaxIndex();
+
+        this.lastProcessedToken = lastProcessedToken;
+        this.startToken = lastProcessedToken;
         this.timeStarted = Instant.now();
 
-        logger.info(
-                "Starting migration with global index {}. This means we have already migrated {} events, still having {} to go. ({}%)",
-                lastProcessedToken,
-                eventsBefore,
-                eventsAfter,
-                (eventsAfter / (eventsBefore + eventsAfter)) * 100);
+        logger.info("Starting migration with global index {}. So progress before starting was {}% of total", this.lastProcessedToken, tokenPercentage());
     }
 
     public void reportBatchSaved(long lastProcessedToken, int resultSize, int storedSize) {
@@ -55,14 +52,12 @@ public class EventMigratorStatisticsReporter {
         if (!enabled) {
             return;
         }
-        long eventsAfter = eventProducer.countEventsAfterGlobalIndex(lastProcessedToken);
-        long eventsBefore = eventProducer.countEventsBeforeGlobalIndex(lastProcessedToken);
         logger.info(
                 "Global index: {}. Migrated events: {}, Events to go: {}. Progress: {}, Skipped: {}, Stored: {}, Skipped percentage: {}",
                 lastProcessedToken,
-                eventsBefore,
-                eventsAfter,
-                percentage(eventsBefore, eventsBefore + eventsAfter),
+                lastProcessedToken - minGlobalIndex,
+                maxGlobalIndex - lastProcessedToken,
+                tokenPercentage(),
                 numberSkipped,
                 numberStored,
                 percentage(numberSkipped, numberSkipped + numberStored));
@@ -70,12 +65,18 @@ public class EventMigratorStatisticsReporter {
         if(secondsSinceStart < 1) {
             return;
         }
-        double rate = (this.numberStored + this.numberSkipped) / secondsSinceStart;
-        double secondsRemaining = eventsAfter / rate;
+        double rate = (this.lastProcessedToken - this.startToken) / secondsSinceStart;
+        double secondsRemaining = (this.maxGlobalIndex - this.startToken) / rate;
         logger.info("Processing at average rate of {} events/sec (including skipped, since start). Projected hours remaining: {}", rate, secondsRemaining / 3600);
     }
 
+    private Double tokenPercentage() {
+        long correctedMax = maxGlobalIndex - minGlobalIndex;
+        long correctedCurrent = lastProcessedToken - minGlobalIndex;
+        return percentage(correctedCurrent, correctedMax);
+    }
+
     private Double percentage(long progress, long total) {
-        return (double) progress / ((double) progress + (double) total);
+        return (double) progress / (double) total;
     }
 }
