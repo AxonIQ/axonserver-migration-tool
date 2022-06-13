@@ -11,4 +11,10 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 public class MigrationLocalProperties {
     private String eventStorePath = "data";
+    private IndexType indexType = IndexType.BLOOM;
+
+    public enum IndexType {
+        BLOOM,
+        JUMP_SKIP
+    }
 }

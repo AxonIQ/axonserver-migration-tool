@@ -8,15 +8,26 @@ spring:
 
 
 axoniq:
-  migration:
-    batchSize: 100
-    eventsLookBackSeconds: 10
-    snapshotsLookBackSeconds: 15
-
   datasource:
+    eventstore:
+      url: jdbc:postgresql://localhost:5432/postgres
+      username: postgres
+      password: mysecretpassword
     migration:
       url: jdbc:h2:./migrationdb
-
+  migration:
+    batch-size: 1000
+    method: local
+    migrate-events: false
+    local:
+      event-store-path: /home/morlack/es-data2/
+      index-type: JUMP_SKIP
 axon:
   serializer:
-    events: xstream
+    events: jackson
+  axonserver:
+    event:
+      storage: /home/morlack/as-data
+logging:
+  pattern:
+    file:

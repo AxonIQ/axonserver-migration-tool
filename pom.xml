@@ -16,7 +16,7 @@
 
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
 
-        <axonserver.version>4.6-SNAPSHOT</axonserver.version>
+        <axonserver.version>4.5.11</axonserver.version>
         <axon.version>4.5.9</axon.version>
         <h2.version>1.4.197</h2.version>
         <spring-boot.version>2.6.7</spring-boot.version>
@@ -37,8 +37,8 @@
     <dependencies>
         <dependency>
             <groupId>io.axoniq.axonserver</groupId>
-            <artifactId>axonserver</artifactId>
-            <version>4.5.13-SNAPSHOT</version>
+            <artifactId>axonserver-enterprise</artifactId>
+            <version>4.5.17</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.springfox</groupId>
@@ -176,5 +176,12 @@
             </plugin>
         </plugins>
     </build>
+
+    <repositories>
+        <repository>
+            <id>axoniq-nexus</id>
+            <url>https://nexus.dev.axoniq.net/repository/products-releases</url>
+        </repository>
+    </repositories>
 
 </project>

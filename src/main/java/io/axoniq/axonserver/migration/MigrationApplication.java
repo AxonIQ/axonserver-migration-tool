@@ -2,6 +2,7 @@ package io.axoniq.axonserver.migration;
 
 import io.axoniq.axonserver.config.AxonServerStandardConfiguration;
 import io.axoniq.axonserver.config.MetricsConfiguration;
+import io.axoniq.axonserver.enterprise.config.AxonServerEnterpriseConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.metrics.web.servlet.WebMvcMetricsAutoConfiguration;
@@ -19,7 +20,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         FlywayAutoConfiguration.class,
         PrometheusMetricsExportAutoConfiguration.class,
         MetricsConfiguration.class,
-        AxonServerStandardConfiguration.class
+        AxonServerStandardConfiguration.class,
+        AxonServerEnterpriseConfiguration.class,
 })
 @EnableScheduling
 public class MigrationApplication {
