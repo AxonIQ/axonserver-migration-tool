@@ -1,5 +1,6 @@
 package io.axoniq.axonserver.migration.migrators;
 
+import io.axoniq.axonserver.connector.event.EventStream;
 import io.axoniq.axonserver.grpc.event.Event;
 import lombok.RequiredArgsConstructor;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
@@ -27,5 +28,16 @@ public class RemoteEventStoreStrategy implements EventStoreStrategy {
     @Override
     public void appendSnapshot(Event snapshot) throws Exception {
         axonDBClient.getConnection().eventChannel().appendSnapshot(snapshot).get(30, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public String getLastEventId() throws Exception {
+        Long lastToken = axonDBClient.getConnection().eventChannel().getLastToken().get();
+        if (lastToken == null || lastToken == -1) {
+            return null;
+        }
+        try (EventStream stream = axonDBClient.getConnection().eventChannel().openStream(lastToken, 1)) {
+            return stream.next().getEvent().getMessageIdentifier();
+        }
     }
 }

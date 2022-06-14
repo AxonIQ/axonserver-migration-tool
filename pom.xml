@@ -40,9 +40,18 @@
             <artifactId>axonserver-enterprise</artifactId>
             <version>4.5.17</version>
             <exclusions>
+                <!-- These exclusions prevent Tomcat from booting a webserver -->
                 <exclusion>
                     <groupId>io.springfox</groupId>
                     <artifactId>springfox-boot-starter</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-web</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-actuator</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -40,12 +41,36 @@ public class EventMigrator implements Migrator {
         long lastProcessedToken = migrationStatus.getLastEventGlobalIndex();
         reporter.initialize(lastProcessedToken);
 
+        String lastEventId = eventStoreStrategy.getLastEventId();
+        boolean isFirstRun = true;
+
         while (true) {
             List<? extends DomainEvent> result = eventProducer.findEvents(lastProcessedToken,
                                                                           migrationProperties.getBatchSize());
             if (result.isEmpty()) {
                 logger.info("No more events found");
                 return;
+            }
+
+            // Check if part of the previous batch was written. This can happen during a kill of the tool, with the H2 database not updating correctly
+            if (isFirstRun && lastEventId != null) {
+                Optional<? extends DomainEvent> matchingEventOptional = result.stream()
+                                                                              .filter(e -> Objects.equals(e.getEventIdentifier(),
+                                                                                                          lastEventId))
+                                                                              .findFirst();
+                if (matchingEventOptional.isPresent()) {
+                    DomainEvent matchingEvent = matchingEventOptional.get();
+                    int index = result.indexOf(matchingEvent);
+                    logger.info(
+                            "Detected partially written batch because event id {}, found at index {}, was already written last time. Filtering the events to correct. ",
+                            lastEventId,
+                            index);
+                    result = result.subList(index + 1, result.size());
+                }
+                isFirstRun = false;
+                if(result.isEmpty()) {
+                    continue;
+                }
             }
 
             if (recentGapIsPresent(lastProcessedToken, result)) {

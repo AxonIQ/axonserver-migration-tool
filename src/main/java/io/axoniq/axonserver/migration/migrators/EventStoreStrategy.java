@@ -7,4 +7,5 @@ import java.util.List;
 public interface EventStoreStrategy {
     void storeEvents(List<Event> events) throws Exception;
     void appendSnapshot(Event snapshot) throws Exception;
+    String getLastEventId() throws Exception;;
 }

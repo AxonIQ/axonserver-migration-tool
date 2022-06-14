@@ -1,5 +1,6 @@
 package io.axoniq.axonserver.migration.properties;
 
+import io.axoniq.axonserver.localstorage.file.StorageProperties;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -10,11 +11,6 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Setter
 public class MigrationLocalProperties {
-    private String eventStorePath = "data";
-    private IndexType indexType = IndexType.BLOOM;
 
-    public enum IndexType {
-        BLOOM,
-        JUMP_SKIP
-    }
+    private StorageProperties storage;
 }
