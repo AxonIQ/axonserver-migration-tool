@@ -7,7 +7,10 @@ import org.axonframework.axonserver.connector.AxonServerConnectionManager;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
@@ -16,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 public class RemoteEventStoreStrategy implements EventStoreStrategy {
 
     private final AxonServerConnectionManager axonDBClient;
+    private final Map<String, Long> sequenceMap = new HashMap<>();
 
     @Override
     public void storeEvents(List<Event> events) throws Exception {
@@ -36,8 +40,31 @@ public class RemoteEventStoreStrategy implements EventStoreStrategy {
         if (lastToken == null || lastToken == -1) {
             return null;
         }
-        try (EventStream stream = axonDBClient.getConnection().eventChannel().openStream(lastToken, 1)) {
+        try (EventStream stream = axonDBClient.getConnection().eventChannel().openStream(lastToken - 1, 1)) {
             return stream.next().getEvent().getMessageIdentifier();
         }
+    }
+
+    @Override
+    public Long getNextSequenceNumber(String aggregate, Long current) throws Exception {
+        Long asCurrent = sequenceMap
+                .computeIfAbsent(aggregate, agg ->
+                                 {
+                                     try {
+                                         return axonDBClient.getConnection().eventChannel().findHighestSequence(aggregate).get();
+                                     } catch (InterruptedException e) {
+                                         throw new RuntimeException(e);
+                                     } catch (ExecutionException e) {
+                                         throw new RuntimeException(e);
+                                     }
+                                 }
+                );
+        sequenceMap.put(aggregate, asCurrent + 1);
+        return asCurrent + 1;
+    }
+
+    @Override
+    public void rollback() {
+        this.sequenceMap.clear();
     }
 }

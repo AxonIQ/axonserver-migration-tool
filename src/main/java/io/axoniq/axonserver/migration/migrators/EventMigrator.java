@@ -31,7 +31,6 @@ public class EventMigrator implements Migrator {
     private final EventProducer eventProducer;
     private final EventSerializer eventSerializer;
     private final MigrationStatusRepository migrationStatusRepository;
-    private final SequenceProviderStrategy sequenceProvider;
     private final EventStoreStrategy eventStoreStrategy;
     private final EventMigratorStatisticsReporter reporter;
 
@@ -82,7 +81,13 @@ public class EventMigrator implements Migrator {
 
             List<Event> events = result
                     .stream()
-                    .map(this::buildEvent)
+                    .map(e -> {
+                        try {
+                            return buildEvent(e);
+                        } catch (Exception ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    })
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
@@ -91,7 +96,6 @@ public class EventMigrator implements Migrator {
             migrationStatus.setLastEventGlobalIndex(lastProcessedToken);
             migrationStatusRepository.save(migrationStatus);
             reporter.reportBatchSaved(lastProcessedToken, result.size(), events.size());
-            sequenceProvider.commit();
         }
     }
 
@@ -124,11 +128,8 @@ public class EventMigrator implements Migrator {
         return migrationProperties.getIgnoredEvents().contains(entry.getPayloadType());
     }
 
-    private Event buildEvent(final DomainEvent entry) {
+    private Event buildEvent(final DomainEvent entry) throws Exception {
         if (isAnIgnoredEventType(entry)) {
-            if (entry.getType() != null) {
-                sequenceProvider.reportSkip(entry.getAggregateIdentifier());
-            }
             return null;
         }
         Event.Builder eventBuilder = Event.newBuilder()
@@ -138,7 +139,7 @@ public class EventMigrator implements Migrator {
         if (entry.getType() != null) {
             String aggregateIdentifier = entry.getAggregateIdentifier() + migrationProperties.getAggregateSuffix();
             eventBuilder.setAggregateType(entry.getType())
-                        .setAggregateSequenceNumber(sequenceProvider.getNextSequenceForAggregate(aggregateIdentifier, entry.getSequenceNumber()))
+                        .setAggregateSequenceNumber(eventStoreStrategy.getNextSequenceNumber(aggregateIdentifier, entry.getSequenceNumber()))
                         .setAggregateIdentifier(aggregateIdentifier);
         }
 
@@ -165,7 +166,7 @@ public class EventMigrator implements Migrator {
                                            .collect(Collectors.toList());
             logger.error("Exception while storing. The event list has the following structure: {}", structure);
             // Clear any cache on the sequence numbers, it's unreliable now.
-            sequenceProvider.rollback();
+            eventStoreStrategy.rollback();
             throw exception;
         }
     }

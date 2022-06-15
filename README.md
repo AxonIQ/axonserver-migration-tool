@@ -12,7 +12,7 @@ You can switch to the Mongo variant by running the application with the correct 
 
 `java -jar axonserver-migration-tool.jar -Pmigrate-from-mongo`
 
-The application will stay running until all snapshots and events are migrated. Parts of the migration can be disabled
+The application will stay running until all snapshots and/or events are migrated. Parts of the migration can be disabled
 using configuration. In addition, the tool can be configured to run indefinitely and keep polling for new events using a
 configured timeout.
 
@@ -50,9 +50,13 @@ This driver should be put in the `__dir__/libs` folder, with `__dir__` being the
 
 Depending
 
-## Notes
+## Various notes
 
-- The migration tool only migrates the event store data to Axon Server. It does not update the tracking token values in
-  token_entry tables. Tracking tokens are highly dependent on the implementation of the actual event store used.
-  Migrating them is case specific and error-prone. Our recommendation is to reset the tracking processors after the
-  migration.
+Besides usage of the migration tool 
+
+### Migrating tracking tokens
+
+The migration tool only migrates the event store data to Axon Server. It does not update the tracking token values in
+token_entry tables. Tracking tokens are highly dependent on the implementation of the actual event store used.
+Migrating them is case specific and error-prone. Our recommendation is to reset the tracking processors after the
+migration.

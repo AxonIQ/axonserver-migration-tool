@@ -1,9 +1,6 @@
 package io.axoniq.axonserver.migration.migrators;
 
-import io.axoniq.axonserver.config.DefaultSystemInfoProvider;
 import io.axoniq.axonserver.config.FileSystemMonitor;
-import io.axoniq.axonserver.config.SystemInfoProvider;
-import io.axoniq.axonserver.enterprise.storage.file.xref.JumpSkipIndexManager;
 import io.axoniq.axonserver.localstorage.EventStorageEngine;
 import io.axoniq.axonserver.localstorage.EventType;
 import io.axoniq.axonserver.localstorage.EventTypeContext;
@@ -25,7 +22,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.env.Environment;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,11 +30,6 @@ import java.io.IOException;
 @ConditionalOnProperty(value = "axoniq.migration.method", havingValue = "LOCAL")
 @Profile("!test")
 public class LocalEventStoreConfiguration {
-    @Bean
-    public SystemInfoProvider systemInfoProvider(Environment environment) {
-        return new DefaultSystemInfoProvider(environment);
-    }
-
     @Bean
     public MeterFactory meterFactory() {
         return new MeterFactory(new SimpleMeterRegistry(), new DefaultMetricCollector());
@@ -52,19 +43,6 @@ public class LocalEventStoreConfiguration {
             MeterFactory meterFactory
     ) {
         return new StandardIndexManager(context,
-                                        properties.getEvent(),
-                                        EventType.EVENT,
-                                        meterFactory);
-    }
-
-    @Bean
-    @ConditionalOnProperty(value = "axoniq.axonserver.event.index-format", havingValue = "JUMP_SKIP")
-    public IndexManager jumpSkipIndexManager(
-            @Value("${axon.axonserver.context:default}") String context,
-            EmbeddedDBProperties properties,
-            MeterFactory meterFactory
-    ) {
-        return new JumpSkipIndexManager(context,
                                         properties.getEvent(),
                                         EventType.EVENT,
                                         meterFactory);

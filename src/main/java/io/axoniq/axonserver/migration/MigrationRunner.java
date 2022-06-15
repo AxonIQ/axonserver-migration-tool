@@ -59,6 +59,8 @@ public class MigrationRunner implements CommandLineRunner {
                 logger.error("Error during migration", executionException.getCause());
             } catch (TimeoutException e) {
                 logger.error("Error during migration", e);
+            } catch (Exception e) {
+                logger.error("Unknown error during migration", e);
             }
         } while (migrationProperties.isContinuous());
 

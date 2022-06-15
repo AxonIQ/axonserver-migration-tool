@@ -5,8 +5,8 @@ spring:
     active: migrate-from-jpa
   jpa:
     database: default
-
-
+  main:
+    banner-mode: off
 axoniq:
   datasource:
     eventstore:
@@ -16,18 +16,10 @@ axoniq:
     migration:
       url: jdbc:h2:./migrationdb
   migration:
-    batch-size: 1000
-    method: local
-    migrate-events: false
-    local:
-      event-store-path: /home/morlack/es-data2/
-      index-type: JUMP_SKIP
+    batch-size: 100
 axon:
   serializer:
     events: jackson
   axonserver:
     event:
       storage: /home/morlack/as-data
-logging:
-  pattern:
-    file:
