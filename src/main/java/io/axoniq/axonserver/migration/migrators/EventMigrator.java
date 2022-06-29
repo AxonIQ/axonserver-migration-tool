@@ -1,16 +1,16 @@
 package io.axoniq.axonserver.migration.migrators;
 
 import io.axoniq.axonserver.grpc.event.Event;
-import io.axoniq.axonserver.migration.DomainEvent;
-import io.axoniq.axonserver.migration.EventProducer;
-import io.axoniq.axonserver.migration.db.MigrationStatus;
-import io.axoniq.axonserver.migration.db.MigrationStatusRepository;
-import io.axoniq.axonserver.migration.properties.MigrationBaseProperties;
+import io.axoniq.axonserver.migration.MigrationBaseProperties;
+import io.axoniq.axonserver.migration.destination.EventStoreStrategy;
+import io.axoniq.axonserver.migration.migrators.db.MigrationStatus;
+import io.axoniq.axonserver.migration.migrators.db.MigrationStatusRepository;
+import io.axoniq.axonserver.migration.serialisation.EventSerializer;
+import io.axoniq.axonserver.migration.source.DomainEvent;
+import io.axoniq.axonserver.migration.source.EventProducer;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -19,13 +19,22 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Migrates the events from an {@link EventProducer} to an {@link EventStoreStrategy} depending on the configuration.
+ * <p>
+ * Will evaluate on the first run whether the previous run completed a batch only partially to prevent double events.
+ * Will stop evaluation when it hits a gaps during a recent period (by default 10 seconds). This means we've reached the
+ * end of the event store, and we cannot guaranty the global index ordering, due to the commit order in the database
+ * being different (or transactions not being completed yet)
+ *
+ * @author Marc Gathier
+ * @author Mitchell Herrijgers
+ */
 @RequiredArgsConstructor
 @Service
-@Profile("!test")
+@Slf4j
 @ConditionalOnProperty(value = "axoniq.migration.migrateEvents", havingValue = "true", matchIfMissing = true)
 public class EventMigrator implements Migrator {
-
-    private final Logger logger = LoggerFactory.getLogger(EventMigrator.class);
 
     private final MigrationBaseProperties migrationProperties;
     private final EventProducer eventProducer;
@@ -47,7 +56,7 @@ public class EventMigrator implements Migrator {
             List<? extends DomainEvent> result = eventProducer.findEvents(lastProcessedToken,
                                                                           migrationProperties.getBatchSize());
             if (result.isEmpty()) {
-                logger.info("No more events found");
+                log.info("No more events found");
                 return;
             }
 
@@ -60,7 +69,7 @@ public class EventMigrator implements Migrator {
                 if (matchingEventOptional.isPresent()) {
                     DomainEvent matchingEvent = matchingEventOptional.get();
                     int index = result.indexOf(matchingEvent);
-                    logger.info(
+                    log.info(
                             "Detected partially written batch because event id {}, found at index {}, was already written last time. Filtering the events to correct. ",
                             lastEventId,
                             index);
@@ -113,10 +122,10 @@ public class EventMigrator implements Migrator {
                                        .orElse(lastProcessedToken);
         for (int i = 1; i <= recentGlobalIndexes.size(); i++) {
             if (!recentGlobalIndexes.contains(maxNonRecentEvent + i)) {
-                logger.error("Missing event at: {}. Found global indexes in batch: {}",
-                             (maxNonRecentEvent + i),
-                             recentGlobalIndexes);
-                logger.error(
+                log.error("Missing event at: {}. Found global indexes in batch: {}",
+                          (maxNonRecentEvent + i),
+                          recentGlobalIndexes);
+                log.error(
                         "This indicates that there is a gap in the database which occurred recently. Since we cannot guarantee data ordering, we are stopping the migration.");
                 return true;
             }
@@ -137,7 +146,7 @@ public class EventMigrator implements Migrator {
                                           .setMessageIdentifier(entry.getEventIdentifier());
 
         if (entry.getType() != null) {
-            String aggregateIdentifier = entry.getAggregateIdentifier() + migrationProperties.getAggregateSuffix();
+            String aggregateIdentifier = entry.getAggregateIdentifier();
             eventBuilder.setAggregateType(entry.getType())
                         .setAggregateSequenceNumber(eventStoreStrategy.getNextSequenceNumber(aggregateIdentifier, entry.getSequenceNumber()))
                         .setAggregateIdentifier(aggregateIdentifier);
@@ -152,8 +161,8 @@ public class EventMigrator implements Migrator {
         if (events.isEmpty()) {
             return;
         }
-        if (logger.isDebugEnabled()) {
-            logger.debug("Storing {} events", events.size());
+        if (log.isDebugEnabled()) {
+            log.debug("Storing {} events", events.size());
         }
 
         try {
@@ -164,7 +173,7 @@ public class EventMigrator implements Migrator {
                                                                    e.getAggregateIdentifier(),
                                                                    e.getAggregateSequenceNumber()))
                                            .collect(Collectors.toList());
-            logger.error("Exception while storing. The event list has the following structure: {}", structure);
+            log.error("Exception while storing. The event list has the following structure: {}", structure);
             // Clear any cache on the sequence numbers, it's unreliable now.
             eventStoreStrategy.rollback();
             throw exception;

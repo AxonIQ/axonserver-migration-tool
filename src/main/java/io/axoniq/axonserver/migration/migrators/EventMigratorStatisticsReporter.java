@@ -1,22 +1,26 @@
 package io.axoniq.axonserver.migration.migrators;
 
-import io.axoniq.axonserver.migration.EventProducer;
+import io.axoniq.axonserver.migration.source.EventProducer;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Profile;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+/**
+ * Reports statistics about the progress of the current run. It logs the current index, amount of events remaining and
+ * the estimated time until completion every 5 seconds.
+ * <p>
+ * Will not run in case the {@link EventProducer} does not support the required {@link EventProducer#getMinIndex()} and
+ * {@link EventProducer#getMaxIndex()} methods.
+ */
 @Service
 @RequiredArgsConstructor
-@Profile("!test")
+@Slf4j
 public class EventMigratorStatisticsReporter {
 
-    private final Logger logger = LoggerFactory.getLogger(EventMigratorStatisticsReporter.class);
     private final EventProducer eventProducer;
     private boolean enabled = true;
     private long startToken = 0;
@@ -30,12 +34,18 @@ public class EventMigratorStatisticsReporter {
     public void initialize(long lastProcessedToken) {
         this.minGlobalIndex = eventProducer.getMinIndex();
         this.maxGlobalIndex = eventProducer.getMaxIndex();
+        if (this.minGlobalIndex == -1 || this.maxGlobalIndex == -1) {
+            this.enabled = false;
+            return;
+        }
 
         this.lastProcessedToken = lastProcessedToken;
         this.startToken = lastProcessedToken;
         this.timeStarted = Instant.now();
 
-        logger.info("Starting migration with global index {}. So progress before starting was {}% of total", this.lastProcessedToken, tokenPercentage());
+        log.info("Starting migration with global index {}. So progress before starting was {}% of total",
+                 this.lastProcessedToken,
+                 tokenPercentage());
     }
 
     public void reportBatchSaved(long lastProcessedToken, int resultSize, int storedSize) {
@@ -52,7 +62,7 @@ public class EventMigratorStatisticsReporter {
         if (!enabled) {
             return;
         }
-        logger.info(
+        log.info(
                 "Global index: {}. Migrated events: {}, Events to go: {}. Progress: {}, Skipped: {}, Stored: {}, Skipped percentage: {}",
                 lastProcessedToken,
                 lastProcessedToken - minGlobalIndex,
@@ -67,7 +77,10 @@ public class EventMigratorStatisticsReporter {
         }
         double rate = (this.lastProcessedToken - this.startToken) / secondsSinceStart;
         double secondsRemaining = (this.maxGlobalIndex - this.startToken) / rate;
-        logger.info("Processing at average rate of {} events/sec (including skipped, since start). Projected hours remaining: {}", rate, secondsRemaining / 3600);
+        log.info(
+                "Processing at average rate of {} events/sec (including skipped, since start). Projected hours remaining: {}",
+                rate,
+                secondsRemaining / 3600);
     }
 
     private Double tokenPercentage() {

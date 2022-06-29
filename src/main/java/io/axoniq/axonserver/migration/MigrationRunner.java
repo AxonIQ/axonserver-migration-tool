@@ -2,14 +2,12 @@ package io.axoniq.axonserver.migration;
 
 
 import io.axoniq.axonserver.migration.migrators.Migrator;
-import io.axoniq.axonserver.migration.properties.MigrationBaseProperties;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -28,7 +26,6 @@ import java.util.concurrent.TimeoutException;
  * @see io.axoniq.axonserver.migration.migrators.EventMigrator
  * @see io.axoniq.axonserver.migration.migrators.SnapshotMigrator
  */
-@Profile("!test")
 @Component
 @RequiredArgsConstructor
 public class MigrationRunner implements CommandLineRunner {
@@ -67,6 +64,7 @@ public class MigrationRunner implements CommandLineRunner {
         logger.info("Migration completed");
         SpringApplication.exit(context);
 
+        // Sleep here to wait for H2 database writes to complete and other threads to shut down gracefully...
         Thread.sleep(2000);
         System.exit(0);
     }

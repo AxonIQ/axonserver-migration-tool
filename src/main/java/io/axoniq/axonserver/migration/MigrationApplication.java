@@ -10,6 +10,7 @@ import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
@@ -24,6 +25,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         PrometheusMetricsExportAutoConfiguration.class,
         MetricsConfiguration.class,
         AxonServerStandardConfiguration.class,
+        MongoAutoConfiguration.class,
 })
 @EnableConfigurationProperties(EmbeddedDBProperties.class)
 @EnableScheduling

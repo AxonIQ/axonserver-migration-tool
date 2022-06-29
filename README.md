@@ -1,60 +1,118 @@
 # Axon Server migration tool
 
 The Axon Server migration tool allows developers to migrate their existing Axon Framework event store, for example in
-Postgres or MongoDB, to Axon Server.
+Postgres or MongoDB, to Axon Server Standard Edition or Enterprise Edition.
 
-There are two Spring profiles:
+You can supply configuration to the tool by using command-lin parameters (such as `-Daxoniq.migration.source=RDBMS`), or
+by adding an `application.properties` file in the working directory containing the wanted configuration.
 
-- `migrate-from-jpa`: Migrates from a RDBMS database, enabled by default
-- `migrate-from-mongo`: Migrates from a Mongo Database
+The migration tool maintains the state of its migration, so it can be run multiple times. It also has built-in detection
+for earlier broken batches.
 
-You can switch to the Mongo variant by running the application with the correct profile:
+## Base configuration
 
-`java -jar axonserver-migration-tool.jar -Pmigrate-from-mongo`
+By default, the application will migrate both events and snapshots. You can disable either by setting a property. In
+addition, the batch size can be configured, as well as continuously running the tool.
 
-The application will stay running until all snapshots and/or events are migrated. Parts of the migration can be disabled
-using configuration. In addition, the tool can be configured to run indefinitely and keep polling for new events using a
-configured timeout.
+| Property                             | Default value | Note                                                                                                                                                                                          |
+|--------------------------------------|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `axoniq.migration.migrateEvents`     | `true`        | Set to `false` to disable event migration                                                                                                                                                     |
+| `axoniq.migration.migrateSnapshots`  | `true`        | Set to `false` to disable snapshot migration                                                                                                                                                  |
+| `axoniq.migration.ignoredEvents`     | `''`          | Add a comma-separated list of (fully qualified) class names you want to skip during the migration. Useful if you have unwanted events in the store. Use with caution!                         |
+| `axoniq.migration.continuous`        | `false`       | Set to `true` to run the tool in a loop continuously. Useful for migrations without downtime.                                                                                                 |
+| `axoniq.migration.continuousTimeout` | `100ms`       | Amount of time for the Thread to sleep until re-running the tool automatically.                                                                                                               |
+| `axoniq.migration.recentMillis`      | `10000`       | Used to determine whether gaps are harmful for the consistency during the migration. If there is a gap within the last 10 seconds (by default), the tool will not process the batch and stop. |
+| `axon.serializer.events`             | `XSTREAM`     | Which serializer to use. XStream by default, can also be `JACKSON` or `DEFAULT`                                                                                                               |
+|
 
-The migration tool maintains the state of its migration, so it can be run multiple times.
+A source and destination for the events and snapshots should also be configured, depending on your use-case.
 
-## Configuration
+Note: You can use environment variables in your properties, like so:
+`my.property=${MY_ENV_VARIABLE}`
 
-In order to find the correct source and desired output of the migration, some configuration is required. These can be
-configured in an `application.properties` file in the working directory of the application.
+## Sources
 
-| Property                                | Required | Description                                                                                                                                                                            |
-|-----------------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `axoniq.axonserver.servers`             | Yes      | Comma separated list of hostnames and ports for the Axon Server cluster.                                                                                                               |
-| `axoniq.datasource.eventstore.url`      | Yes      | Url of the JDBC data store containing the existing event store                                                                                                                         |
-| `axoniq.datasource.eventstore.username` | Yes      | Username to connect to the JDBC data store containing the existing event store                                                                                                         |
-| `axoniq.datasource.eventstore.password` | Yes      | Password to connect to the JDBC data store containing the existing event store                                                                                                         |
-| `axon.serializer.events*=jackson`       | No       | The default settings expect the data in the current event store to be serialized using the XstreamSerializer. Add this property if the data is serialized using the JacksonSerializer. |
-| `axoniq.migration.batchSize`            | No       | The batch size during the migration, defaults to 100                                                                                                                                   |
-| `axoniq.migration.recentMillis`         | No       | The amount of milliseconds an event is considered recent. If the event is recent and a gap is detected, the migration will stop for safety.                                            |                                           |
-| `axoniq.migration.migrateSnapshots`     | No       | Setting this property to false will disable the snapshot migration. Useful for only running the events migration.                                                                      |                                           |
-| `axoniq.migration.migrateEvents`        | No       | Setting this property to true will disable the snapshot migration. Useful for only running the snapshot migration.                                                                     |                                           |
-| `axoniq.migration.ignoredEvents`        | No       | A list of the payload types that should be ignored during the migration. NOTE: Be sure that this does not affect your aggregates in a bad way.                                         |                                           |
-| `axoniq.migration.continuous`           | No       | Set this to true if you want the application to run indefinitely                                                                                                                       |                                           |
-| `axoniq.migration.continuousTimeout`    | No       | Amount of time to sleep before retrying the migration using the continuous flag. Defaults to 100ms.                                                                                    |                                           |
+You should define the source of the events and snapshots you want to migrate. Currently, this can be an RDBMS database
+or a Mongo instance.
 
-Any other Axon Framework properties can be used as well. This can be useful to configure certificates, access control
-tokens or other settings.
+### RDBMS
 
-### Drivers
+In order to migrate from an RDBMS, the following properties should be supplied:
 
-In addition, the application should be supplied a JDBC driver for the configured origin database.
-This driver should be put in the `__dir__/libs` folder, with `__dir__` being the working directory of the application.
+| Property                                  | Value                                                                                                                                                                            |
+|-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `axoniq.migration.source`                 | `RDBMS`                                                                                                                                                                          |
+| `axoniq.datasource.eventstore.url`        | JDBC url of the database                                                                                                                                                         |
+| `axoniq.datasource.eventstore.username`   | Username of the database                                                                                                                                                         |
+| `axoniq.datasource.eventstore.password`   | Password of the database                                                                                                                                                         |
+| `spring.jpa.properties.hibernate.dialect` | OPTIONAL. If you want to use a specific dialect, define this property. You can attach your own Jars containing a dialect in the `libs` folder. This will be automatically loaded |
 
-### Other configuration
+The application should be supplied a JDBC driver for the configured origin database.
+This driver should be put in the `libs` folder.
 
-Depending
 
-## Various notes
+### Mongo
 
-Besides usage of the migration tool 
+In order to migrate from a Mongo database, the following properties should be supplied:
 
-### Migrating tracking tokens
+| Property                       | Value                    |
+|--------------------------------|--------------------------|
+| `axoniq.migration.source`      | `MONGO`                  |
+| `spring.data.mongodb.uri`      | URI of the database      |
+| `spring.data.mongodb.username` | Username of the database |
+| `spring.data.mongodb.password` | Password of the database |
+
+Other options for the Spring Mongo library can be used as well.
+
+
+
+## Destinations
+
+We also need a place to store the events. This is always Axon Server. The destination differs in the manner which it is
+stored; remote or locally.
+
+The remote destination uses GRPC protocol to call Axon Server and store the events using the method also used by Axon
+Framework internally.
+This is sufficient for most use-cases.
+
+The local destination stores the file directly on disk, without a running instance of Axon Server. After the migration
+the event store can be used by the Axon Server instance. Because it lacks the need for remote communication and
+replication logs, it is much
+faster than the remote method.
+
+### Remote
+
+In order to use the remote method, define the following properties
+
+| Property                       | Value                                                                    |
+|--------------------------------|--------------------------------------------------------------------------|
+| `axoniq.migration.destination` | `LOCAL`                                                                  |
+| `axoniq.axonserver.servers`    | Comma separated list of hostnames and ports for the Axon Server cluster. |
+
+Any other Axon Framework properties for Axon Server can be used as well. This can be useful to configure certificates,
+access control tokens or other settings.
+
+### Local
+The local method currently only supports migrating events.
+
+| Property                               | Value                                                                                                   |
+|----------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `axoniq.migration.destination`         | `REMOTE`                                                                                                |
+| `axoniq.migration.migrateSnapshots`    | `false` (as migrating snapshots in this manner is not supported)                                        |
+| `axon.axonserver.context`              | The context the events should be stored in                                                              |
+| `axoniq.axonserver.events.storage`     | The storage directory where you want to store the events.                                               |
+| `axoniq.axonserver.event.index-format` | Only for Axon Server EE: Set to `JUMP_SKIP` or `BLOOM`, depending on the index format you want to have. |
+
+Do not migrate while Axon server is simultaneously running for that same context! This will lead to conflicts.
+
+Follow these steps:
+- (if existent) Delete the context you want to migrate to
+- (if running) Shut down Axon Server
+- Run migration
+- Start Axon Server
+- Create the context (and the replication group if Enterprise Edition)
+
+## Migrating tracking tokens
 
 The migration tool only migrates the event store data to Axon Server. It does not update the tracking token values in
 token_entry tables. Tracking tokens are highly dependent on the implementation of the actual event store used.

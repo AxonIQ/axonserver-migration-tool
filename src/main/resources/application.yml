@@ -1,8 +1,6 @@
 spring:
   application:
-    name: axondb-migration
-  profiles:
-    active: migrate-from-jpa
+    name: axonserver-migration
   jpa:
     database: default
   main:

@@ -2,17 +2,18 @@ package io.axoniq.axonserver.migration.migrators;
 
 
 import io.axoniq.axonserver.grpc.event.Event;
-import io.axoniq.axonserver.migration.EventProducer;
-import io.axoniq.axonserver.migration.SnapshotEvent;
-import io.axoniq.axonserver.migration.db.MigrationStatus;
-import io.axoniq.axonserver.migration.db.MigrationStatusRepository;
-import io.axoniq.axonserver.migration.properties.MigrationBaseProperties;
+import io.axoniq.axonserver.migration.MigrationBaseProperties;
+import io.axoniq.axonserver.migration.destination.EventStoreStrategy;
+import io.axoniq.axonserver.migration.migrators.db.MigrationStatus;
+import io.axoniq.axonserver.migration.migrators.db.MigrationStatusRepository;
+import io.axoniq.axonserver.migration.serialisation.EventSerializer;
+import io.axoniq.axonserver.migration.source.EventProducer;
+import io.axoniq.axonserver.migration.source.SnapshotEvent;
 import lombok.RequiredArgsConstructor;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -27,7 +28,6 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @author Marc Gathier
  */
-@Profile("!test")
 @Component
 @ConditionalOnProperty(value = "axoniq.migration.migrateSnapshots", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
