@@ -5,7 +5,7 @@
     <groupId>io.axoniq.axonserver</groupId>
     <artifactId>axonserver-migration</artifactId>
     <name>AxonServer MigrationTool</name>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -16,10 +16,12 @@
 
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
 
-        <axonserver.version>4.5.11</axonserver.version>
+        <axonserver.version>4.5.12</axonserver.version>
         <axon.version>4.5.9</axon.version>
         <h2.version>1.4.197</h2.version>
         <spring-boot.version>2.6.7</spring-boot.version>
+        <mapdb.version>3.0.8</mapdb.version>
+        <lombok.version>1.18.24</lombok.version>
     </properties>
 
     <dependencyManagement>
@@ -38,7 +40,7 @@
         <dependency>
             <groupId>io.axoniq.axonserver</groupId>
             <artifactId>axonserver</artifactId>
-            <version>4.5.12</version>
+            <version>${axonserver.version}</version>
             <exclusions>
                 <!-- These exclusions prevent Tomcat from booting a webserver -->
                 <exclusion>
@@ -64,7 +66,7 @@
         <dependency>
             <groupId>org.mapdb</groupId>
             <artifactId>mapdb</artifactId>
-            <version>3.0.8</version>
+            <version>${mapdb.version}</version>
         </dependency>
 
         <dependency>
@@ -76,7 +78,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.24</version>
+            <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
 

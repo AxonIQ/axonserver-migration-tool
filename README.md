@@ -7,7 +7,7 @@ You can supply configuration to the tool by using command-lin parameters (such a
 by adding an `application.properties` file in the working directory containing the wanted configuration.
 
 The migration tool maintains the state of its migration, so it can be run multiple times. It also has built-in detection
-for earlier broken batches.
+for earlier broken batches. The tool can not be run in parallel to preserve the event store order.
 
 ## Base configuration
 
@@ -33,7 +33,8 @@ Note: You can use environment variables in your properties, like so:
 ## Sources
 
 You should define the source of the events and snapshots you want to migrate. Currently, this can be an RDBMS database
-or a Mongo instance.
+or a Mongo instance. The source is dermined by the `axoniq.migration.source` and can be configured with either `RDBMS`
+or `MONGO` currently. More information on specific properties for both can be found in the next sections.
 
 ### RDBMS
 
