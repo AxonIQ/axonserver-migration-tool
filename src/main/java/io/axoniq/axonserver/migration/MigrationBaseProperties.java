@@ -24,6 +24,7 @@ public class MigrationBaseProperties {
 
     private boolean migrateSnapshots;
     private boolean migrateEvents;
+    private boolean reorderSequenceNumbers;
     private List<String> ignoredEvents = Collections.emptyList();
 
     private boolean continuous = false;
@@ -39,5 +40,13 @@ public class MigrationBaseProperties {
     public enum MigrationDestination {
         REMOTE,
         LOCAL
+    }
+
+    /**
+     * Whether to reorder the sequence numbers because there are gaps. Gaps can be there due to manual database edits,
+     * or because the migration tool has been told to skip certain event types.
+     */
+    public boolean shouldRequestSequenceNumbers() {
+        return !ignoredEvents.isEmpty() || reorderSequenceNumbers;
     }
 }

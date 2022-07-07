@@ -10,7 +10,6 @@ import io.axoniq.axonserver.migration.serialisation.EventSerializer;
 import io.axoniq.axonserver.migration.source.EventProducer;
 import io.axoniq.axonserver.migration.source.SnapshotEvent;
 import lombok.RequiredArgsConstructor;
-import org.axonframework.axonserver.connector.AxonServerConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -35,7 +34,6 @@ public class SnapshotMigrator implements Migrator {
 
     private final MigrationBaseProperties migrationProperties;
     private final EventProducer eventProducer;
-    private final AxonServerConnectionManager axonDBClient;
     private final MigrationStatusRepository migrationStatusRepository;
     private final EventSerializer eventSerializer;
     private final EventStoreStrategy eventStoreStrategy;

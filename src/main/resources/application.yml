@@ -7,10 +7,6 @@ spring:
     banner-mode: off
 axoniq:
   datasource:
-    eventstore:
-      url: jdbc:postgresql://localhost:5432/postgres
-      username: postgres
-      password: mysecretpassword
     migration:
       url: jdbc:h2:./migrationdb
   migration:
@@ -18,6 +14,3 @@ axoniq:
 axon:
   serializer:
     events: jackson
-  axonserver:
-    event:
-      storage: /home/morlack/as-data

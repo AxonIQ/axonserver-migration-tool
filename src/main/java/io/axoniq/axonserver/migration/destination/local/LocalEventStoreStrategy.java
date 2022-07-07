@@ -4,23 +4,32 @@ import io.axoniq.axonserver.grpc.event.Event;
 import io.axoniq.axonserver.localstorage.EventStorageEngine;
 import io.axoniq.axonserver.localstorage.SerializedEventWithToken;
 import io.axoniq.axonserver.migration.destination.EventStoreStrategy;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.util.CloseableIterator;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import javax.annotation.PreDestroy;
 
-@RequiredArgsConstructor
 @Service
 @ConditionalOnProperty(value = "axoniq.migration.destination", havingValue = "LOCAL")
 public class LocalEventStoreStrategy implements EventStoreStrategy {
+
     private final EventStorageEngine eventStorageEngine;
+    private final EventStorageEngine snapshotStorageEngine;
+
+    public LocalEventStoreStrategy(@Qualifier("events") EventStorageEngine eventStorageEngine,
+                                   @Qualifier("snapshots") EventStorageEngine snapshotStorageEngine) {
+        this.eventStorageEngine = eventStorageEngine;
+        this.snapshotStorageEngine = snapshotStorageEngine;
+    }
 
     @PreDestroy
     public void close() {
         eventStorageEngine.close(false);
+        snapshotStorageEngine.close(false);
     }
 
     @Override
@@ -30,7 +39,7 @@ public class LocalEventStoreStrategy implements EventStoreStrategy {
 
     @Override
     public void appendSnapshot(Event snapshot) throws Exception {
-        throw new IllegalStateException("Storing snapshot using local migration is currently not supported");
+        snapshotStorageEngine.store(Collections.singletonList(snapshot));
     }
 
     @Override
@@ -46,6 +55,8 @@ public class LocalEventStoreStrategy implements EventStoreStrategy {
             }
             return event
                     .getSerializedEvent().getIdentifier();
+        } catch (NullPointerException e) {
+            return null;
         }
     }
 }

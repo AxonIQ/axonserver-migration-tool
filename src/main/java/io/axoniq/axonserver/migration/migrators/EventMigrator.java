@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(value = "axoniq.migration.migrateEvents", havingValue = "true", matchIfMissing = true)
 public class EventMigrator implements Migrator {
 
-    private final MigrationBaseProperties migrationProperties;
+    private final MigrationBaseProperties properties;
     private final EventProducer eventProducer;
     private final EventSerializer eventSerializer;
     private final MigrationStatusRepository migrationStatusRepository;
@@ -54,7 +54,7 @@ public class EventMigrator implements Migrator {
 
         while (true) {
             List<? extends DomainEvent> result = eventProducer.findEvents(lastProcessedToken,
-                                                                          migrationProperties.getBatchSize());
+                                                                          properties.getBatchSize());
             if (result.isEmpty()) {
                 log.info("No more events found");
                 return;
@@ -134,7 +134,7 @@ public class EventMigrator implements Migrator {
     }
 
     private boolean isAnIgnoredEventType(DomainEvent entry) {
-        return migrationProperties.getIgnoredEvents().contains(entry.getPayloadType());
+        return properties.getIgnoredEvents().contains(entry.getPayloadType());
     }
 
     private Event buildEvent(final DomainEvent entry) throws Exception {
@@ -147,8 +147,10 @@ public class EventMigrator implements Migrator {
 
         if (entry.getType() != null) {
             String aggregateIdentifier = entry.getAggregateIdentifier();
+            long nextSequenceNumber = properties.shouldRequestSequenceNumbers() ? entry.getSequenceNumber()
+                    : eventStoreStrategy.getNextSequenceNumber(aggregateIdentifier, entry.getSequenceNumber());
             eventBuilder.setAggregateType(entry.getType())
-                        .setAggregateSequenceNumber(eventStoreStrategy.getNextSequenceNumber(aggregateIdentifier, entry.getSequenceNumber()))
+                        .setAggregateSequenceNumber(nextSequenceNumber)
                         .setAggregateIdentifier(aggregateIdentifier);
         }
 
@@ -181,6 +183,6 @@ public class EventMigrator implements Migrator {
     }
 
     private boolean isRecentEvent(DomainEvent entry) {
-        return entry.getTimeStampAsLong() > System.currentTimeMillis() - migrationProperties.getRecentMillis();
+        return entry.getTimeStampAsLong() > System.currentTimeMillis() - properties.getRecentMillis();
     }
 }

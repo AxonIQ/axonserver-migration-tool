@@ -40,7 +40,7 @@ public class MigrationDBConfiguration {
         properties.put("hibernate.implicit_naming_strategy", SpringImplicitNamingStrategy.class.getName());
         return builder
                 .dataSource(migrationDataSource())
-                .packages("io.axoniq.axonserver.migration.db")
+                .packages("io.axoniq.axonserver.migration.migrators.db")
                 .persistenceUnit("migration")
                 .properties(properties)
                 .build();

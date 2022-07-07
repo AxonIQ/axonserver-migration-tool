@@ -11,7 +11,7 @@ import javax.annotation.PostConstruct;
  * {@link EventStoreStrategy} that is used when the configuration is missing. Will throw an error on boot immediately.
  */
 @Service
-@ConditionalOnProperty(value = "axoniq.migration.destination", matchIfMissing = true)
+@ConditionalOnProperty(value = "axoniq.migration.destination", matchIfMissing = true, havingValue = "false")
 public class MissingEventStoreStrategy implements EventStoreStrategy {
     public static final String MIGRATION_DESTINATION_WAS_NOT_DEFINED = "Migration destination was not defined. Please supply the 'axoniq.migration.destination' property. Consult the README.md if necessary.";
 

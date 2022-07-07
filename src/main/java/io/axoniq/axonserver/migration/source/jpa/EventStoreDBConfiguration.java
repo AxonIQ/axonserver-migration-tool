@@ -26,7 +26,7 @@ import javax.sql.DataSource;
  */
 @Configuration
 @ConditionalOnProperty(value = "axoniq.migration.source", havingValue = "RDBMS")
-@EnableJpaRepositories(basePackages = "io.axoniq.axonserver.migration.jpa",
+@EnableJpaRepositories(basePackages = "io.axoniq.axonserver.migration.source.jpa",
         entityManagerFactoryRef = "eventStoreEntityManagerFactory")
 public class EventStoreDBConfiguration {
 
@@ -44,7 +44,7 @@ public class EventStoreDBConfiguration {
 
         return builder
                 .dataSource(eventStoreDataSource())
-                .packages("io.axoniq.axonserver.migration.jpa")
+                .packages("io.axoniq.axonserver.migration.source.jpa")
                 .persistenceUnit("eventstore")
                 .properties(properties)
                 .build();

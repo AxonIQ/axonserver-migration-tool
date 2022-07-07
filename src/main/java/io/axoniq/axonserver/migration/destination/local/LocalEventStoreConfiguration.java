@@ -16,6 +16,7 @@ import io.axoniq.axonserver.metric.MeterFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.commons.io.FileUtils;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.autoconfigure.system.DiskSpaceHealthIndicatorProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -52,24 +53,44 @@ public class LocalEventStoreConfiguration {
     }
 
     @Bean
-    public EventStorageEngine eventStorageEngine(
-            @Value("${axon.axonserver.context:default}") String context,
+    @Qualifier("events")
+    public EventStorageEngine eventEventStorageEngine(
+            @Value("${axoniq.axonserver.context:default}") String context,
             EmbeddedDBProperties embeddedDBProperties,
             MeterRegistry meterRegistry,
             IndexManager indexManager,
             MeterFactory meterFactory
     ) throws IOException {
         StorageProperties storageProperties = embeddedDBProperties.getEvent();
+        return createStore(storageProperties, context, EventType.EVENT, indexManager, meterFactory, meterRegistry);
+    }
+
+    @Bean
+    @Qualifier("snapshots")
+    public EventStorageEngine snapshotEventStorageEngine(
+            @Value("${axoniq.axonserver.context:default}") String context,
+            EmbeddedDBProperties embeddedDBProperties,
+            MeterRegistry meterRegistry,
+            IndexManager indexManager,
+            MeterFactory meterFactory
+    ) throws IOException {
+        StorageProperties storageProperties = embeddedDBProperties.getSnapshot();
+        return createStore(storageProperties, context, EventType.SNAPSHOT, indexManager, meterFactory, meterRegistry);
+    }
+
+    private PrimaryEventStore createStore(StorageProperties storageProperties, String context, EventType eventType,
+                                          IndexManager indexManager, MeterFactory meterFactory,
+                                          MeterRegistry meterRegistry) throws IOException {
         // Ensure the directory is created
         FileUtils.createParentDirectories(new File(storageProperties.getStorage(context) + "/dummyfile.txt"));
 
         DefaultEventTransformerFactory eventTransformerFactory = new DefaultEventTransformerFactory();
-        InputStreamEventStore second = new InputStreamEventStore(new EventTypeContext(context, EventType.EVENT),
+        InputStreamEventStore second = new InputStreamEventStore(new EventTypeContext(context, eventType),
                                                                  indexManager,
                                                                  eventTransformerFactory,
                                                                  storageProperties,
                                                                  meterFactory);
-        PrimaryEventStore primaryEventStore = new PrimaryEventStore(new EventTypeContext(context, EventType.EVENT),
+        PrimaryEventStore primaryEventStore = new PrimaryEventStore(new EventTypeContext(context, eventType),
                                                                     indexManager,
                                                                     eventTransformerFactory,
                                                                     storageProperties,

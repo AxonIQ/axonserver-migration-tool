@@ -11,7 +11,7 @@ import javax.annotation.PostConstruct;
  * {@link EventStoreStrategy} that is used when the configuration is missing. Will throw an error on boot immediately.
  */
 @Service
-@ConditionalOnProperty(value = "axoniq.migration.source", matchIfMissing = true)
+@ConditionalOnProperty(value = "axoniq.migration.source", havingValue = "false", matchIfMissing = true)
 public class MissingEventProducer implements EventProducer {
 
     public static final String MIGRATION_SOURCE_WAS_NOT_DEFINED = "Migration source was not defined. Please supply the 'axoniq.migration.source' property. Consult the README.md if necessary.";
