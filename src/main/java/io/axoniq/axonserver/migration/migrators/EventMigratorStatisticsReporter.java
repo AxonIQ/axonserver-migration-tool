@@ -59,7 +59,7 @@ public class EventMigratorStatisticsReporter {
 
     @Scheduled(fixedRate = 5000, initialDelay = 1000)
     public void report() {
-        if (!enabled) {
+        if (!enabled || this.timeStarted == null) {
             return;
         }
         log.info(

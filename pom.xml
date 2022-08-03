@@ -16,10 +16,11 @@
 
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
 
-        <axonserver.version>4.5.12</axonserver.version>
-        <axon.version>4.5.9</axon.version>
+        <axonserver.version>4.6.1</axonserver.version>
+        <axon.version>4.5.14</axon.version>
         <h2.version>1.4.197</h2.version>
-        <spring-boot.version>2.6.7</spring-boot.version>
+        <spring-boot.version>2.7.1</spring-boot.version>
+        <grpc.version>1.47.0</grpc.version>
         <mapdb.version>3.0.8</mapdb.version>
         <lombok.version>1.18.24</lombok.version>
     </properties>
@@ -32,6 +33,19 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- Defining grpc version is necessary, or maven will hang. Not sure why -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty</artifactId>
+                <version>${grpc.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -54,6 +68,18 @@
                 <exclusion>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-starter-actuator</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.axoniq.axonserver</groupId>
+                    <artifactId>axonserver-migration</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.axonframework</groupId>
+                    <artifactId>axon-configuration</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.axonframework</groupId>
+                    <artifactId>axon-server-connector</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -195,7 +221,19 @@
     <repositories>
         <repository>
             <id>axoniq-nexus</id>
-            <url>https://nexus.dev.axoniq.net/repository/products-releases</url>
+            <url>https://nexus.dev.axoniq.net/repository/products/</url>
+        </repository>
+        <repository>
+            <id>sonatype</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <checksumPolicy>fail</checksumPolicy>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
         </repository>
     </repositories>
 

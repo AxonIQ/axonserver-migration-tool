@@ -45,6 +45,9 @@ public class LocalEventStoreStrategy implements EventStoreStrategy {
     @Override
     public String getLastEventId() throws Exception {
         long lastToken = eventStorageEngine.getLastToken();
+        if (lastToken == -1) {
+            return null;
+        }
         try (CloseableIterator<SerializedEventWithToken> iterator = eventStorageEngine.getGlobalIterator(lastToken)) {
             SerializedEventWithToken event = iterator
                     .stream().findFirst()

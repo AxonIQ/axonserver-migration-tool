@@ -47,7 +47,7 @@ public class LocalEventStoreConfiguration {
             MeterFactory meterFactory
     ) {
         return new StandardIndexManager(context,
-                                        properties.getEvent(),
+                                        properties::getEvent,
                                         EventType.EVENT,
                                         meterFactory);
     }
@@ -88,12 +88,12 @@ public class LocalEventStoreConfiguration {
         InputStreamEventStore second = new InputStreamEventStore(new EventTypeContext(context, eventType),
                                                                  indexManager,
                                                                  eventTransformerFactory,
-                                                                 storageProperties,
+                                                                 () -> storageProperties,
                                                                  meterFactory);
         PrimaryEventStore primaryEventStore = new PrimaryEventStore(new EventTypeContext(context, eventType),
                                                                     indexManager,
                                                                     eventTransformerFactory,
-                                                                    storageProperties,
+                                                                    () -> storageProperties,
                                                                     second,
                                                                     meterFactory,
                                                                     new FileSystemMonitor(new DiskSpaceHealthIndicatorProperties(),
