@@ -18,7 +18,7 @@
 
         <axonserver.version>4.6.1</axonserver.version>
         <axon.version>4.5.14</axon.version>
-        <h2.version>1.4.197</h2.version>
+        <h2.version>2.1.214</h2.version>
         <spring-boot.version>2.7.1</spring-boot.version>
         <grpc.version>1.47.0</grpc.version>
         <mapdb.version>3.0.8</mapdb.version>
