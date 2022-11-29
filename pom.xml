@@ -19,7 +19,7 @@
         <axonserver.version>4.6.1</axonserver.version>
         <axon.version>4.5.14</axon.version>
         <h2.version>1.4.197</h2.version>
-        <spring-boot.version>2.7.1</spring-boot.version>
+        <spring-boot.version>3.0.0</spring-boot.version>
         <grpc.version>1.47.0</grpc.version>
         <mapdb.version>3.0.8</mapdb.version>
         <lombok.version>1.18.24</lombok.version>
