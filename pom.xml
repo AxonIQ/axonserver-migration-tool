@@ -16,12 +16,10 @@
 
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
 
-        <axonserver.version>4.6.1</axonserver.version>
-        <axon.version>4.5.14</axon.version>
+        <axon.version>4.6.8</axon.version>
         <h2.version>1.4.197</h2.version>
         <spring-boot.version>2.7.1</spring-boot.version>
-        <grpc.version>1.47.0</grpc.version>
-        <mapdb.version>3.0.8</mapdb.version>
+        <grpc.version>1.50.3</grpc.version>
         <lombok.version>1.18.24</lombok.version>
     </properties>
 
@@ -52,47 +50,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.axoniq.axonserver</groupId>
-            <artifactId>axonserver</artifactId>
-            <version>${axonserver.version}</version>
-            <exclusions>
-                <!-- These exclusions prevent Tomcat from booting a webserver -->
-                <exclusion>
-                    <groupId>io.springfox</groupId>
-                    <artifactId>springfox-boot-starter</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-web</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-actuator</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.axoniq.axonserver</groupId>
-                    <artifactId>axonserver-migration</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.axonframework</groupId>
-                    <artifactId>axon-configuration</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.axonframework</groupId>
-                    <artifactId>axon-server-connector</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>org.axonframework</groupId>
             <artifactId>axon-configuration</artifactId>
             <version>${axon.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.mapdb</groupId>
-            <artifactId>mapdb</artifactId>
-            <version>${mapdb.version}</version>
         </dependency>
 
         <dependency>
@@ -100,7 +60,7 @@
             <artifactId>axon-server-connector</artifactId>
             <version>${axon.version}</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -112,7 +72,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
         </dependency>
-
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -165,6 +124,11 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.1.6</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

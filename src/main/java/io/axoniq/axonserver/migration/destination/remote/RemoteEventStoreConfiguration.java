@@ -9,12 +9,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Configuration class that defines the correct beans to using a {@code LOCAL} destination.
+ * Configuration class that defines the correct beans to using a {@code AXONSERVER} destination.
  *
  * @author Mitchell Herrijgers
  */
 @Configuration
-@ConditionalOnProperty(value = "axoniq.migration.destination", havingValue = "REMOTE")
+@ConditionalOnProperty(value = "axoniq.migration.destination", havingValue = "AXONSERVER", matchIfMissing = true)
 @RequiredArgsConstructor
 public class RemoteEventStoreConfiguration {
     private final ApplicationContext applicationContext;

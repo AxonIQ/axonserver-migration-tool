@@ -1,5 +1,7 @@
 package io.axoniq.axonserver.migration.destination.remote;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.axoniq.axonserver.connector.event.EventStream;
 import io.axoniq.axonserver.grpc.event.Event;
 import io.axoniq.axonserver.migration.destination.EventStoreStrategy;
@@ -8,9 +10,9 @@ import org.axonframework.axonserver.connector.AxonServerConnectionManager;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -20,7 +22,10 @@ import java.util.concurrent.TimeUnit;
 public class RemoteEventStoreStrategy implements EventStoreStrategy {
 
     private final AxonServerConnectionManager axonServerConnectionManager;
-    private final Map<String, Long> sequenceMap = new HashMap<>();
+    private final Cache<String, Long> sequenceCache = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.of(1, ChronoUnit.MINUTES))
+            .maximumSize(10000)
+            .build();
 
     @Override
     public void storeEvents(List<Event> events) throws Exception {
@@ -48,27 +53,20 @@ public class RemoteEventStoreStrategy implements EventStoreStrategy {
 
     @Override
     public Long getNextSequenceNumber(String aggregate, Long current) throws Exception {
-        if(sequenceMap.size() > 50000) {
-            sequenceMap.clear();
-        }
-        Long asCurrent = sequenceMap
-                .computeIfAbsent(aggregate, agg ->
-                                 {
-                                     try {
-                                         return axonServerConnectionManager.getConnection().eventChannel().findHighestSequence(aggregate).get();
-                                     } catch (InterruptedException e) {
-                                         throw new RuntimeException(e);
-                                     } catch (ExecutionException e) {
-                                         throw new RuntimeException(e);
-                                     }
-                                 }
-                );
-        sequenceMap.put(aggregate, asCurrent + 1);
-        return asCurrent + 1;
+        Long currentValue = sequenceCache.get(aggregate, agg -> {
+            try {
+                return axonServerConnectionManager.getConnection().eventChannel().findHighestSequence(agg).get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Long newValue = currentValue == null ? 0 : currentValue + 1;
+        sequenceCache.put(aggregate, newValue);
+        return newValue;
     }
 
     @Override
     public void rollback() {
-        this.sequenceMap.clear();
+        this.sequenceCache.cleanUp();
     }
 }

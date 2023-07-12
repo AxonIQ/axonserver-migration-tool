@@ -9,6 +9,11 @@ by adding an `application.properties` file in the working directory containing t
 The migration tool maintains the state of its migration, so it can be run multiple times. It also has built-in detection
 for earlier broken batches. The tool can not be run in parallel to preserve the event store order.
 
+> **Notice**: Before executing this migration tool, it is recommended to read the following blog post: 
+> https://developer.axoniq.io/w/help-i-want-to-change-my-event-store
+
+
+
 ## Base configuration
 
 By default, the application will migrate both events and snapshots. You can disable either by setting a property. In
@@ -66,67 +71,24 @@ In order to migrate from a Mongo database, the following properties should be su
 
 Other options for the Spring Mongo library can be used as well.
 
-
-
 ## Destinations
 
-We also need a place to store the events. This is always Axon Server. The destination differs in the manner which it is
-stored; remote or locally.
-
-The remote destination uses GRPC protocol to call Axon Server and store the events using the method also used by Axon
+We also need a place to store the events. The remote destination uses GRPC protocol to call Axon Server and store the events using the method also used by Axon
 Framework internally.
-This is sufficient for most use-cases.
-
-The local destination stores the file directly on disk, without a running instance of Axon Server. After the migration
-the event store can be used by the Axon Server instance. Because it lacks the need for remote communication and
-replication logs, it is much
-faster than the remote method.
 
 ### Remote
 
-In order to use the remote method, define the following properties
+In order to migrate events to Axon Server, define the following properties
 
 | Property                       | Value                                                                    |
 |--------------------------------|--------------------------------------------------------------------------|
-| `axoniq.migration.destination` | `REMOTE`                                                                 |
+| `axoniq.migration.destination` | `AXONSERVER`                                                             |
 | `axoniq.axonserver.servers`    | Comma separated list of hostnames and ports for the Axon Server cluster. |
 | `axoniq.axonserver.context`    | The target context to migrate to, `default` by default.                  |
 | `axoniq.axonserver.token`      | The access token, if access control is enabled.                          |
 
 Any other Axon Framework properties for Axon Server can be used as well. This can be useful to configure certificates,
 access control tokens or other settings.
-
-### Local
-The local method currently only supports migrating events.
-
-| Property                               | Value                                                                                                   |
-|----------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `axoniq.migration.destination`         | `LOCAL`                                                                                                 |
-| `axoniq.axonserver.context`            | The context the events should be stored in                                                              |
-| `axoniq.axonserver.event.storage`      | The storage directory where you want to store the events.                                               |
-| `axoniq.axonserver.snapshot.storage`   | The storage directory where you want to store the events.                                               |
-| `axoniq.axonserver.event.index-format` | Only for Axon Server EE: Set to `JUMP_SKIP` or `BLOOM`, depending on the index format you want to have. |
-
-Do not migrate while Axon server is simultaneously running for that same context! This will lead to conflicts.
-
-#### Axon Server Standard Edition
-
-Follow these steps:
-- Shut down Axon Server
-- Delete the event store for a fresh start
-- Set migration properties
-- Run migration
-- Start Axon Server
-
-#### Axon Server Enterprise Edition
-
-You should only migrate to Axon Server Enterprise edition with the Enterprise edition of this tool. This is included in the Enterprise edition download package and contains the improved JUMP_SKIP index mode. 
-
-Follow these steps:
-- Delete the context you want to migrate to, if it exists
-- Set migration properties, including setting `axoniq.axonserver.event.index-format` to `JUMP_SKIP`
-- Run migration
-- Create the context and replication group (this will import the migrated store)
 
 ## Migrating tracking tokens
 
