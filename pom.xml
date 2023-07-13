@@ -21,7 +21,7 @@
     <groupId>io.axoniq.axonserver</groupId>
     <artifactId>axonserver-migration</artifactId>
     <name>AxonServer MigrationTool</name>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
