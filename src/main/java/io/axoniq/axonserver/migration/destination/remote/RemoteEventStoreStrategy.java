@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
 @Service
-@ConditionalOnProperty(value = "axoniq.migration.destination", havingValue = "REMOTE", matchIfMissing = true)
+@ConditionalOnProperty(value = "axoniq.migration.destination", havingValue = "AXONSERVER", matchIfMissing = true)
 public class RemoteEventStoreStrategy implements EventStoreStrategy {
 
     private final AxonServerConnectionManager axonServerConnectionManager;
