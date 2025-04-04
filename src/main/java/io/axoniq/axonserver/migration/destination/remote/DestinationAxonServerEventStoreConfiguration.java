@@ -37,7 +37,7 @@ public class DestinationAxonServerEventStoreConfiguration {
     private final ApplicationContext applicationContext;
 
     @Bean
-    public AxonServerConnectionManager axonServerConnectionManager(
+    public AxonServerConnectionManager destinationAxonServerConnectionManager(
             @Qualifier("destinationAxonServerConfiguration") AxonServerConfiguration axonServerConfiguration) {
         axonServerConfiguration.setComponentName(clientName(applicationContext.getId()));
         return AxonServerConnectionManager.builder()

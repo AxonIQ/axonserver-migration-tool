@@ -21,8 +21,8 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import io.axoniq.axonserver.connector.event.EventStream;
 import io.axoniq.axonserver.grpc.event.Event;
 import io.axoniq.axonserver.migration.destination.EventStoreStrategy;
-import lombok.RequiredArgsConstructor;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -32,12 +32,17 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-@RequiredArgsConstructor
 @Service
 @ConditionalOnProperty(value = "axoniq.migration.destination", havingValue = "AXONSERVER", matchIfMissing = true)
 public class RemoteEventStoreStrategy implements EventStoreStrategy {
 
     private final AxonServerConnectionManager axonServerConnectionManager;
+
+    public RemoteEventStoreStrategy(
+            @Qualifier("destinationAxonServerConnectionManager") AxonServerConnectionManager axonServerConnectionManager) {
+        this.axonServerConnectionManager = axonServerConnectionManager;
+    }
+
     private final Cache<String, Long> sequenceCache = Caffeine.newBuilder()
             .expireAfterAccess(Duration.of(1, ChronoUnit.MINUTES))
             .maximumSize(10000)
