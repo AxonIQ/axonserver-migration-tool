@@ -110,5 +110,5 @@ just like you would an Axon Framework application.
 
 The migration tool only migrates the event store data to Axon Server. It does not update the tracking token values in
 token_entry tables. Tracking tokens are highly dependent on the implementation of the actual event store used.
-Migrating them is case specific and error-prone. Our recommendation is to reset the tracking processors after the
+Migrating them is case-specific and error-prone. Our recommendation is to reset the tracking processors after the
 migration.
