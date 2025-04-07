@@ -22,6 +22,7 @@ import io.axoniq.axonserver.migration.source.EventProducer;
 import io.axoniq.axonserver.migration.source.SnapshotEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
+import org.axonframework.serialization.Serializer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -40,12 +41,16 @@ import java.util.concurrent.TimeUnit;
 public class AxonServerEventProducer implements EventProducer {
 
     private final AxonServerConnectionManager connectionManager;
+    private final Serializer serializer;
     private EventStream eventStream;
     private Long lastRequestedEventToken = -1L;
 
     public AxonServerEventProducer(
-            @Qualifier("originAxonServerConnectionManager") AxonServerConnectionManager connectionManager) {
+            @Qualifier("originAxonServerConnectionManager") AxonServerConnectionManager connectionManager,
+            Serializer serializer
+    ) {
         this.connectionManager = connectionManager;
+        this.serializer = serializer;
     }
 
     @Override
@@ -70,7 +75,7 @@ public class AxonServerEventProducer implements EventProducer {
                     // No event available. Stop polling
                     break;
                 }
-                batch.add(new AxonServerBackedDomainEvent(eventWithToken));
+                batch.add(new AxonServerBackedDomainEvent(eventWithToken, serializer));
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

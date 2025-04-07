@@ -27,5 +27,4 @@ public interface SnapshotEvent extends BaseEvent {
     long getSequenceNumber();
 
     String getTimeStamp();
-
 }

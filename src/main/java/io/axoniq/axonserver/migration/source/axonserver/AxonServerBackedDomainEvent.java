@@ -2,13 +2,20 @@ package io.axoniq.axonserver.migration.source.axonserver;
 
 import io.axoniq.axonserver.grpc.event.EventWithToken;
 import io.axoniq.axonserver.migration.source.DomainEvent;
+import org.axonframework.axonserver.connector.util.GrpcMetaDataConverter;
+import org.axonframework.messaging.MetaData;
+import org.axonframework.serialization.Serializer;
 
 public class AxonServerBackedDomainEvent implements DomainEvent {
 
     private final EventWithToken eventWithToken;
+    private final Serializer serializer;
+    private final GrpcMetaDataConverter grpcMetaDataConverter;
 
-    public AxonServerBackedDomainEvent(EventWithToken eventWithToken) {
+    public AxonServerBackedDomainEvent(EventWithToken eventWithToken, Serializer serializer) {
         this.eventWithToken = eventWithToken;
+        this.serializer = serializer;
+        this.grpcMetaDataConverter = new GrpcMetaDataConverter(serializer);
     }
 
     @Override
@@ -58,6 +65,7 @@ public class AxonServerBackedDomainEvent implements DomainEvent {
 
     @Override
     public byte[] getMetaData() {
-        return eventWithToken.getEvent().getPayload().getData().toByteArray();
+        MetaData javaRepresentation = grpcMetaDataConverter.convert(eventWithToken.getEvent().getMetaDataMap());
+        return serializer.serialize(javaRepresentation, byte[].class).getData();
     }
 }
