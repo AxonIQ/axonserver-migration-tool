@@ -19,6 +19,7 @@ package io.axoniq.axonserver.migration.destination.remote;
 import lombok.RequiredArgsConstructor;
 import org.axonframework.axonserver.connector.AxonServerConfiguration;
 import org.axonframework.axonserver.connector.AxonServerConnectionManager;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -32,26 +33,21 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConditionalOnProperty(value = "axoniq.migration.destination", havingValue = "AXONSERVER", matchIfMissing = true)
 @RequiredArgsConstructor
-public class RemoteEventStoreConfiguration {
+public class DestinationAxonServerEventStoreConfiguration {
     private final ApplicationContext applicationContext;
 
     @Bean
-    public AxonServerConfiguration axonServerConfiguration() {
-        AxonServerConfiguration configuration = new AxonServerConfiguration();
-        configuration.setComponentName(clientName(applicationContext.getId()));
-        return configuration;
+    public AxonServerConnectionManager destinationAxonServerConnectionManager(
+            @Qualifier("destinationAxonServerConfiguration") AxonServerConfiguration axonServerConfiguration) {
+        axonServerConfiguration.setComponentName(clientName(applicationContext.getId()));
+        return AxonServerConnectionManager.builder()
+                                          .axonServerConfiguration(axonServerConfiguration)
+                                          .build();
     }
 
     private String clientName(String id) {
         if( id == null) return "AxonServerMigration";
         if (id.contains(":")) return id.substring(0, id.indexOf(':'));
         return id;
-    }
-
-    @Bean
-    public AxonServerConnectionManager axonServerConnectionManager(AxonServerConfiguration axonServerConfiguration) {
-        return AxonServerConnectionManager.builder()
-                                          .axonServerConfiguration(axonServerConfiguration)
-                                          .build();
     }
 }

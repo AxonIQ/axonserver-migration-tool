@@ -20,10 +20,10 @@ import io.axoniq.axonserver.migration.source.SnapshotEvent;
 
 import java.io.Serializable;
 import java.util.Objects;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.IdClass;
-import javax.persistence.NamedQuery;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.NamedQuery;
 
 /**
  * Entity representing a snapshot in the RDBMS store.

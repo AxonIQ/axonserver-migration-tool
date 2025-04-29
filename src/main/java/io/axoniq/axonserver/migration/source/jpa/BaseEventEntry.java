@@ -20,10 +20,10 @@ import io.axoniq.axonserver.migration.source.BaseEvent;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import javax.persistence.Basic;
-import javax.persistence.Column;
-import javax.persistence.Lob;
-import javax.persistence.MappedSuperclass;
+import jakarta.persistence.Basic;
+import jakarta.persistence.Column;
+import jakarta.persistence.Lob;
+import jakarta.persistence.MappedSuperclass;
 
 /**
  * @author Marc Gathier

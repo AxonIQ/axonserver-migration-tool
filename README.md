@@ -39,8 +39,9 @@ Note: You can use environment variables in your properties, like so:
 ## Sources
 
 You should define the source of the events and snapshots you want to migrate. Currently, this can be an RDBMS database
-or a Mongo instance. The source is dermined by the `axoniq.migration.source` and can be configured with either `RDBMS`
-or `MONGO` currently. More information on specific properties for both can be found in the next sections.
+or a Mongo instance. The source is dermined by the `axoniq.migration.source` and can be configured with `RDBMS`, `MONGO`
+or `AXONSERVER`.
+More information on specific properties for both can be found in the next sections.
 
 ### RDBMS
 
@@ -69,30 +70,45 @@ In order to migrate from a Mongo database, the following properties should be su
 | `spring.data.mongodb.username` | Username of the database |
 | `spring.data.mongodb.password` | Password of the database |
 
-Other options for the Spring Mongo library can be used as well.
+### Axon Server
+
+You can use Axon Server as a source, to migrate events from one Axon Server to another.
+Note that snapshots won't be migrated, as Axon Server does not allow snapshots to be queried in this fashion.
+
+In order to migrate from an Axon Server, the following properties should be supplied:
+
+| Property                                     | Value                                                                    |
+|----------------------------------------------|--------------------------------------------------------------------------|
+| `axoniq.migration.source`                    | `AXONSERVER`                                                             |
+| `axoniq.migration.source.axonserver.servers` | Comma separated list of hostnames and ports for the Axon Server cluster. |
+| `axoniq.migration.source.axonserver.context` | The source context to migrate from, `default` by default.                |
+
+Note that you can use any Axon Server property under `axoniq.migration.source.axonserver` to configure the connection to the Axon Server,
+just like you would an Axon Framework application.
 
 ## Destinations
 
 We also need a place to store the events. The remote destination uses GRPC protocol to call Axon Server and store the events using the method also used by Axon
 Framework internally.
 
-### Remote
+### Axon Server
 
 In order to migrate events to Axon Server, define the following properties
 
-| Property                       | Value                                                                    |
-|--------------------------------|--------------------------------------------------------------------------|
-| `axoniq.migration.destination` | `AXONSERVER`                                                             |
-| `axoniq.axonserver.servers`    | Comma separated list of hostnames and ports for the Axon Server cluster. |
-| `axoniq.axonserver.context`    | The target context to migrate to, `default` by default.                  |
-| `axoniq.axonserver.token`      | The access token, if access control is enabled.                          |
+| Property                                          | Value                                                                    |
+|---------------------------------------------------|--------------------------------------------------------------------------|
+| `axoniq.migration.destination`                    | `AXONSERVER`                                                             |
+| `axoniq.migration.destination.axonserver.servers` | Comma separated list of hostnames and ports for the Axon Server cluster. |
+| `axoniq.migration.destination.axonserver.context` | The target context to migrate to, `default` by default.                  |
+| `axoniq.migration.destination.axonserver.token`   | The access token, if access control is enabled.                          |
 
-Any other Axon Framework properties for Axon Server can be used as well. This can be useful to configure certificates,
-access control tokens or other settings.
+
+Note that you can use any Axon Server property under `axoniq.migration.destination.axonserver` to configure the connection to the Axon Server,
+just like you would an Axon Framework application.
 
 ## Migrating tracking tokens
 
 The migration tool only migrates the event store data to Axon Server. It does not update the tracking token values in
 token_entry tables. Tracking tokens are highly dependent on the implementation of the actual event store used.
-Migrating them is case specific and error-prone. Our recommendation is to reset the tracking processors after the
+Migrating them is case-specific and error-prone. Our recommendation is to reset the tracking processors after the
 migration.
