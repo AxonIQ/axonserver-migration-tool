@@ -70,7 +70,7 @@ public class AxonServerEventProducer implements EventProducer {
         List<AxonServerBackedDomainEvent> batch = new LinkedList<>();
         while (batch.size() < batchSize) {
             try {
-                EventWithToken eventWithToken = eventStream.nextIfAvailable(1, TimeUnit.SECONDS);
+                EventWithToken eventWithToken = eventStream.nextIfAvailable(30, TimeUnit.SECONDS);
                 if (eventWithToken == null) {
                     // No event available. Stop polling
                     break;
